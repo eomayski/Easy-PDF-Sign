@@ -1,14 +1,9 @@
-import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
+import { PDFDocument, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import { getCyrillicFont } from './fonts';
 import type { PdfRect, VisualSignatureConfig, SignatureLayout } from '../../types';
 
-function hexToRgb(hex: string) {
-  const r = parseInt(hex.slice(1, 3), 16) / 255;
-  const g = parseInt(hex.slice(3, 5), 16) / 255;
-  const b = parseInt(hex.slice(5, 7), 16) / 255;
-  return rgb(r, g, b);
-}
-
-function drawText(
+function drawWrappedText(
   page: PDFPage,
   text: string,
   x: number,
@@ -17,16 +12,17 @@ function drawText(
   size: number,
   maxWidth: number,
 ) {
-  const lines: string[] = [];
   const words = text.split(' ');
+  const lines: string[] = [];
   let line = '';
+
   for (const word of words) {
-    const testLine = line ? `${line} ${word}` : word;
-    if (font.widthOfTextAtSize(testLine, size) > maxWidth && line) {
+    const test = line ? `${line} ${word}` : word;
+    if (font.widthOfTextAtSize(test, size) > maxWidth && line) {
       lines.push(line);
       line = word;
     } else {
-      line = testLine;
+      line = test;
     }
   }
   if (line) lines.push(line);
@@ -42,21 +38,19 @@ function drawText(
   }
 }
 
-function embedBase64Image(pdfDoc: PDFDocument, dataUrl: string) {
+async function embedBase64Image(
+  pdfDoc: PDFDocument,
+  dataUrl: string,
+): Promise<Awaited<ReturnType<PDFDocument['embedPng']>>> {
   const comma = dataUrl.indexOf(',');
   const header = dataUrl.slice(0, comma);
-  const base64 = dataUrl.slice(comma + 1);
-  const bytes = Buffer.from(base64, 'base64');
-
-  if (header.includes('png')) {
-    return pdfDoc.embedPng(bytes);
-  }
-  return pdfDoc.embedJpg(bytes);
+  const bytes = Buffer.from(dataUrl.slice(comma + 1), 'base64');
+  return header.includes('png') ? pdfDoc.embedPng(bytes) : pdfDoc.embedJpg(bytes);
 }
 
 /**
- * Draws the visible signature rectangle (appearance) on the given page.
- * Returns the modified PDF bytes.
+ * Draws the visible signature appearance on the specified page.
+ * Embeds a system font with Cyrillic support so Bulgarian text renders correctly.
  */
 export async function applyVisualSignature(
   pdfBytes: Uint8Array,
@@ -66,58 +60,60 @@ export async function applyVisualSignature(
   signerName?: string,
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.load(pdfBytes);
-  const page = pdfDoc.getPages()[pageIndex];
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  pdfDoc.registerFontkit(fontkit);
 
+  const fontBytes = getCyrillicFont();
+  const font = await pdfDoc.embedFont(fontBytes);
+  const boldFont = font; // same font; a bold variant would need a separate TTF
+
+  const page = pdfDoc.getPages()[pageIndex];
   const { x, y, width, height } = rect;
 
-  // Background
+  // Background + border
   page.drawRectangle({
     x,
     y,
     width,
     height,
     color: rgb(0.97, 0.97, 1),
-    borderColor: hexToRgb('#6366f1'),
+    borderColor: rgb(0.388, 0.4, 0.945), // brand-500 ≈ #6366f1
     borderWidth: 1,
   });
 
   const pad = 4;
   const innerX = x + pad;
-  const innerY = y + height - pad;
   const innerW = width - pad * 2;
 
   const layout: SignatureLayout = config.layout;
-  const hasImage =
-    (config.imageDataUrl || config.handwrittenDataUrl) &&
+
+  // Embed image if needed
+  let embeddedImage: Awaited<ReturnType<PDFDocument['embedPng']>> | null = null;
+  const activeImageUrl = config.handwrittenDataUrl ?? config.imageDataUrl;
+  const wantsImage =
+    activeImageUrl &&
     (layout === 'text-left-image-right' || layout === 'image-only' || layout === 'text-above-image');
 
-  // Embed image if present
-  let embeddedImage: Awaited<ReturnType<typeof pdfDoc.embedPng>> | null = null;
-  const activeImageUrl = config.handwrittenDataUrl ?? config.imageDataUrl;
-  if (activeImageUrl && hasImage) {
+  if (wantsImage && activeImageUrl) {
     try {
       embeddedImage = await embedBase64Image(pdfDoc, activeImageUrl);
     } catch {
-      // ignore image embed errors
+      // ignore
     }
   }
 
   const textColumnW =
     layout === 'text-left-image-right' && embeddedImage ? innerW * 0.55 : innerW;
-  const imgColumnW = innerW - textColumnW - pad;
 
-  // Draw text content
+  // Draw text
   if (layout !== 'image-only') {
-    let curY = innerY;
     const nameSize = Math.max(6, Math.min(9, height / 5));
     const labelSize = Math.max(5, Math.min(7, height / 6));
+    let curY = y + height - pad - nameSize;
 
     if (config.showName) {
       const displayName = signerName ?? 'Подписан от сертификат';
-      drawText(page, displayName, innerX, curY - nameSize, boldFont, nameSize, textColumnW);
-      curY -= nameSize + 3;
+      drawWrappedText(page, displayName, innerX, curY, boldFont, nameSize, textColumnW);
+      curY -= nameSize + 4;
     }
 
     if (config.showDate) {
@@ -130,34 +126,29 @@ export async function applyVisualSignature(
       });
       page.drawText(`Дата: ${dateStr}`, {
         x: innerX,
-        y: curY - labelSize,
+        y: curY,
         size: labelSize,
         font,
         color: rgb(0.3, 0.3, 0.3),
       });
-      curY -= labelSize + 3;
+      curY -= labelSize + 4;
     }
 
     if (config.freeText) {
-      drawText(page, config.freeText, innerX, curY - labelSize, font, labelSize, textColumnW);
+      drawWrappedText(page, config.freeText, innerX, curY, font, labelSize, textColumnW);
     }
   }
 
   // Draw image
   if (embeddedImage) {
+    const imgPad = pad * 2;
     const imgX =
-      layout === 'text-left-image-right'
-        ? x + textColumnW + pad * 2
-        : innerX;
+      layout === 'text-left-image-right' ? x + textColumnW + imgPad : innerX;
     const imgY = y + pad;
     const imgH =
-      layout === 'text-above-image' ? height * 0.5 : height - pad * 2;
+      layout === 'text-above-image' ? height * 0.45 : height - pad * 2;
     const imgW =
-      layout === 'text-left-image-right'
-        ? imgColumnW
-        : layout === 'text-above-image'
-          ? innerW
-          : innerW;
+      layout === 'text-left-image-right' ? innerW - textColumnW - imgPad : innerW;
 
     const dims = embeddedImage.scale(1);
     const scale = Math.min(imgW / dims.width, imgH / dims.height);
