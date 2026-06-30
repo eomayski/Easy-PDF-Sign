@@ -1,0 +1,13 @@
+[Unit]
+Description=Easy PDF Sign Helper Agent
+Documentation=https://github.com/eomayski/easy-pdf-sign
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/easy-pdf-sign-helper
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

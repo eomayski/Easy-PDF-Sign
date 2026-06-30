@@ -20,8 +20,8 @@ jobs:
             script: build:mac
             artifact: easy-pdf-sign-helper-macos
           - os: ubuntu-latest
-            script: build:linux
-            artifact: easy-pdf-sign-helper-linux
+            script: build:linux-packages
+            artifact: easy-pdf-sign-helper-linux-packages
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -41,6 +41,12 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: choco install nsis --no-progress -y
 
+      - name: Install fpm (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get install -y ruby ruby-dev build-essential rpm
+          sudo gem install --no-document fpm
+
       - name: Install dependencies
         run: npm install
 
@@ -48,9 +54,18 @@ jobs:
         run: npm run ${{ matrix.script }}
 
       - uses: actions/upload-artifact@v4
+        if: matrix.os != 'ubuntu-latest'
         with:
           name: ${{ matrix.artifact }}
           path: helper-agent/release/${{ matrix.artifact }}
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            helper-agent/release/easy-pdf-sign-helper.rpm
+            helper-agent/release/easy-pdf-sign-helper.deb
 
   release:
     needs: build

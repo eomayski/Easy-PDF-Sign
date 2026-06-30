@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Easy PDF Sign Helper
+Comment=Local PKCS#11 signing agent (listens on 127.0.0.1:17357)
+Exec=/usr/local/bin/easy-pdf-sign-helper
+Hidden=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=3

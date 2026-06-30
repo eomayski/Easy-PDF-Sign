@@ -12,7 +12,7 @@ import {
   useConfirmAdViewMutation,
 } from '../../store/api';
 import { viewportToPdfRect } from '../../lib/coords';
-import { detectOS, getHelperDownload } from '../../lib/detectOS';
+import { detectOS, getHelperDownloads } from '../../lib/detectOS';
 import type { SigningMethod, SignaturePlacement, VisualSignatureConfig } from '../../types';
 import type { CertInfo } from './types';
 
@@ -257,12 +257,17 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
               За подписване със смарт карта е необходимо да инсталирате локалния помощен агент.
               Инсталирайте го веднъж — след това ще работи автоматично.
             </p>
-            <a
-              href={getHelperDownload(detectOS()).url}
-              className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
-            >
-              ↓ {getHelperDownload(detectOS()).label}
-            </a>
+            <div className="flex flex-wrap gap-2">
+              {getHelperDownloads(detectOS()).map((dl) => (
+                <a
+                  key={dl.url}
+                  href={dl.url}
+                  className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+                >
+                  ↓ {dl.label}
+                </a>
+              ))}
+            </div>
             <button
               onClick={() => {
                 setAgentStatus('checking');

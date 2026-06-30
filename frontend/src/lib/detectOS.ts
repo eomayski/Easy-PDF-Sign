@@ -33,3 +33,14 @@ export function getHelperDownload(os: DetectedOS): HelperDownload {
       return { label: 'Изтегли Easy PDF Sign Helper', url: '/downloads/' };
   }
 }
+
+/** Returns all installer links for the given OS. Linux gets both .rpm and .deb. */
+export function getHelperDownloads(os: DetectedOS): HelperDownload[] {
+  if (os === 'linux') {
+    return [
+      { label: 'Изтегли за Fedora/RHEL (.rpm)', url: '/downloads/easy-pdf-sign-helper.rpm' },
+      { label: 'Изтегли за Debian/Ubuntu (.deb)', url: '/downloads/easy-pdf-sign-helper.deb' },
+    ];
+  }
+  return [getHelperDownload(os)];
+}
