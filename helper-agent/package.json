@@ -7,6 +7,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "build:win": "npm run build && pkg dist/index.js --target node18-win-x64 --output release/easy-pdf-sign-helper.exe --config pkg.config.json",
+    "build:win-installer": "npm run build:win && makensis installer/windows/installer.nsi",
     "build:linux": "npm run build && pkg dist/index.js --target node18-linux-x64 --output release/easy-pdf-sign-helper-linux --config pkg.config.json",
     "build:mac": "npm run build && pkg dist/index.js --target node18-macos-x64 --output release/easy-pdf-sign-helper-macos --config pkg.config.json"
   },

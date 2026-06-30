@@ -14,8 +14,8 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            script: build:win
-            artifact: easy-pdf-sign-helper.exe
+            script: build:win-installer
+            artifact: easy-pdf-sign-helper-setup.exe
           - os: macos-latest
             script: build:mac
             artifact: easy-pdf-sign-helper-macos
@@ -36,6 +36,10 @@ jobs:
       - name: Install build tools (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get update && sudo apt-get install -y build-essential
+
+      - name: Install NSIS (Windows)
+        if: matrix.os == 'windows-latest'
+        run: choco install nsis --no-progress -y
 
       - name: Install dependencies
         run: npm install
