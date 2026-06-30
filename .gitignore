@@ -4,6 +4,10 @@ release/
 .env
 *.local
 uploads/
+backend/public/downloads/*.exe
+backend/public/downloads/*.deb
+backend/public/downloads/*.rpm
+backend/public/downloads/*.pkg
 .DS_Store
 *.tsbuildinfo
 prisma/migrations/

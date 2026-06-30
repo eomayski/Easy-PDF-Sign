@@ -1,13 +1,16 @@
 [Unit]
 Description=Easy PDF Sign Helper Agent
 Documentation=https://github.com/eomayski/easy-pdf-sign
-After=network.target
+After=network.target graphical-session.target
 
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/easy-pdf-sign-helper
 Restart=on-failure
 RestartSec=5
+# Propagate the graphical session env so pinentry/zenity can open a dialog.
+# GNOME exports these to the systemd user instance at login.
+PassEnvironment=DISPLAY WAYLAND_DISPLAY DBUS_SESSION_BUS_ADDRESS
 
 [Install]
-WantedBy=default.target
+WantedBy=graphical-session.target

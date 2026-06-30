@@ -9,6 +9,8 @@
     "build:win": "npm run build && pkg dist/index.js --target node18-win-x64 --output release/easy-pdf-sign-helper.exe --config pkg.config.json",
     "build:win-installer": "npm run build:win && makensis installer/windows/installer.nsi",
     "build:linux": "npm run build && pkg dist/index.js --target node18-linux-x64 --output release/easy-pdf-sign-helper-linux --config pkg.config.json",
+    "build:linux-rpm": "npm run build:linux && bash installer/linux/build-rpm.sh",
+    "build:linux-deb": "npm run build:linux && bash installer/linux/build-deb.sh",
     "build:linux-packages": "npm run build:linux && bash installer/linux/build-packages.sh",
     "build:mac": "npm run build && pkg dist/index.js --target node18-macos-x64 --output release/easy-pdf-sign-helper-macos --config pkg.config.json"
   },

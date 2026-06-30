@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import uploadRouter from './routes/upload';
 import filesRouter from './routes/files';
 import signRouter from './routes/sign';
@@ -18,6 +19,9 @@ app.use('/api/files', filesRouter);
 app.use('/api/sign', signRouter);
 app.use('/api/ads', adsRouter);
 app.use('/api/download', downloadRouter);
+
+// Installer downloads (populated by CI — see helper-agent/installer/)
+app.use('/downloads', express.static(path.join(__dirname, '../public/downloads')));
 
 // Health check
 app.get('/api/health', (_req, res) => res.json({ ok: true }));

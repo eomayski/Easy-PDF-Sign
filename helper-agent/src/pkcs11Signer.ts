@@ -181,6 +181,13 @@ export async function signHash(hashHex: string, certId: string): Promise<string>
   const session = openSession(slot, G);
   try {
     const pin = await promptPin();
+    if (!pin) {
+      throw new Error(
+        'PIN не беше въведен. Ако агентът работи като systemd service, ' +
+        'изпълнете: systemctl --user set-environment DISPLAY=:0 и рестартирайте service-а. ' +
+        'Или задайте PKCS11_PIN в ~/.config/easy-pdf-sign-helper.env',
+      );
+    }
     session.login(pin);
 
     // Locate certificate
