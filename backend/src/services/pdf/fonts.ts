@@ -25,9 +25,18 @@ export function loadCyrillicFont(): Buffer {
             '/Library/Fonts/Tahoma.ttf',
           ]
         : [
+            // Fedora / RHEL / openSUSE paths
+            '/usr/share/fonts/liberation-sans-fonts/LiberationSans-Regular.ttf',
+            '/usr/share/fonts/open-sans/OpenSans-Regular.ttf',
+            '/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf',
+            '/usr/share/fonts/google-noto-vf/NotoSans[wght].ttf',
+            // Debian / Ubuntu paths
             '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
             '/usr/share/fonts/truetype/freefont/FreeSans.ttf',
             '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+            // Arch Linux paths
+            '/usr/share/fonts/TTF/DejaVuSans.ttf',
+            '/usr/share/fonts/liberation/LiberationSans-Regular.ttf',
           ];
 
   for (const p of candidates) {

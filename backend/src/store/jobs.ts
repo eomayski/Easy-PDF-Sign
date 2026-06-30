@@ -12,6 +12,8 @@ export function createJob(id: string, originalPath: string, fileName: string): S
     status: 'uploaded',
     originalPath,
     signedPath: null,
+    preparedPath: null,
+    preparedByteRange: null,
     fileName,
     method: null,
     byteRangeHash: null,

@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { getJob, updateJob } from '../store/jobs';
 import { mockSign } from '../services/signing/mockSigner';
+import { preparePAdES, completePAdES } from '../services/signing/physicalSigner';
 import type { PdfRect, VisualSignatureConfig, SigningMethod } from '../types';
 
 const router = Router();
@@ -11,9 +12,9 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR ?? './uploads';
 
 /**
  * POST /api/sign/prepare
- * Applies the visual appearance to the PDF.
- * For mock method: also "signs" it (no crypto) and saves the result.
- * For physical method (Phase 1): returns byteRangeHash for the helper-agent.
+ *
+ * mock:     Applies visual layer, treats as "signed", returns { jobId, status }.
+ * physical: Applies visual layer + PAdES placeholder, returns { jobId, byteRangeHash }.
  */
 router.post('/prepare', async (req, res, next) => {
   try {
@@ -23,12 +24,14 @@ router.post('/prepare', async (req, res, next) => {
       pdfRect,
       visualConfig,
       method,
+      signerName,
     }: {
       jobId: string;
       page: number;
       pdfRect: PdfRect;
       visualConfig: VisualSignatureConfig;
       method: SigningMethod;
+      signerName?: string;
     } = req.body;
 
     const job = getJob(jobId);
@@ -40,27 +43,36 @@ router.post('/prepare', async (req, res, next) => {
     const pdfBytes = fs.readFileSync(job.originalPath);
 
     if (method === 'mock') {
-      // Phase 0: apply visual layer and treat as "signed"
       const signedBytes = await mockSign(pdfBytes, page - 1, pdfRect, visualConfig);
-      const signedFileName = `${jobId}_signed.pdf`;
-      const signedPath = path.join(UPLOAD_DIR, signedFileName);
+      const signedPath = path.join(UPLOAD_DIR, `${jobId}_signed.pdf`);
       fs.writeFileSync(signedPath, signedBytes);
-
       updateJob(jobId, { status: 'signed', method: 'mock', signedPath });
       res.json({ jobId, status: 'signed' });
       return;
     }
 
     if (method === 'physical') {
-      // Phase 1: apply visual layer + add PAdES placeholder, return hash
-      // TODO Phase 1: implement @signpdf placeholder + hash computation
-      res.status(501).json({ error: 'Physical signing not yet implemented (Phase 1)' });
+      const { pdfWithPlaceholder, byteRangeHash, byteRange } = await preparePAdES(
+        pdfBytes,
+        page - 1,
+        pdfRect,
+        visualConfig,
+        signerName,
+      );
+      const preparedPath = path.join(UPLOAD_DIR, `${jobId}_prepared.pdf`);
+      fs.writeFileSync(preparedPath, pdfWithPlaceholder);
+      updateJob(jobId, {
+        status: 'prepared',
+        method: 'physical',
+        preparedPath,
+        preparedByteRange: byteRange,
+        byteRangeHash,
+      });
+      res.json({ jobId, byteRangeHash });
       return;
     }
 
     if (method === 'cloud') {
-      // Phase 3: remote signing via Evrotrust/B-Trust
-      // TODO Phase 3: implement CloudSignerProvider
       res.status(501).json({ error: 'Cloud signing not yet implemented (Phase 3)' });
       return;
     }
@@ -73,20 +85,40 @@ router.post('/prepare', async (req, res, next) => {
 
 /**
  * POST /api/sign/complete
- * Receives a CMS signature from the browser (physical flow) and embeds it.
- * Phase 1 only.
+ *
+ * Receives the hex-encoded CMS from the browser (produced by the helper agent)
+ * and embeds it into the PAdES placeholder to produce the final signed PDF.
  */
 router.post('/complete', async (req, res, next) => {
   try {
-    const { jobId }: { jobId: string; cms: string } = req.body;
+    const { jobId, cms }: { jobId: string; cms: string } = req.body;
+
+    if (!jobId || !cms) {
+      res.status(400).json({ error: 'jobId and cms are required' });
+      return;
+    }
+
     const job = getJob(jobId);
     if (!job) {
       res.status(404).json({ error: 'Job not found' });
       return;
     }
+    if (job.status !== 'prepared' || !job.preparedPath || !job.preparedByteRange) {
+      res.status(409).json({ error: 'Job is not in prepared state' });
+      return;
+    }
 
-    // TODO Phase 1: embed CMS into PAdES placeholder
-    res.status(501).json({ error: 'Physical signing completion not yet implemented (Phase 1)' });
+    const preparedBytes = fs.readFileSync(job.preparedPath);
+    const signedBytes = completePAdES(preparedBytes, job.preparedByteRange, cms);
+
+    const signedPath = path.join(UPLOAD_DIR, `${jobId}_signed.pdf`);
+    fs.writeFileSync(signedPath, signedBytes);
+
+    // Remove the temporary prepared file
+    fs.unlinkSync(job.preparedPath);
+
+    updateJob(jobId, { status: 'signed', signedPath, preparedPath: null });
+    res.json({ jobId, status: 'signed' });
   } catch (err) {
     next(err);
   }

@@ -1,0 +1,61 @@
+name: Build helper-agent
+
+# Native PKCS#11 addon must be compiled on the OS it will run on — pkg cannot
+# cross-compile native modules. This matrix runs each build on its own real OS.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'helper-agent-v*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            script: build:win
+            artifact: easy-pdf-sign-helper.exe
+          - os: macos-latest
+            script: build:mac
+            artifact: easy-pdf-sign-helper-macos
+          - os: ubuntu-latest
+            script: build:linux
+            artifact: easy-pdf-sign-helper-linux
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: helper-agent
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install build tools (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y build-essential
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run ${{ matrix.script }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: helper-agent/release/${{ matrix.artifact }}
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/helper-agent-v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*

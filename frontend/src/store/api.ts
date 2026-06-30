@@ -45,6 +45,7 @@ export const api = createApi({
         pdfRect: PdfRect;
         visualConfig: VisualSignatureConfig;
         method: SigningMethod;
+        signerName?: string;
       }
     >({
       query: (body) => ({

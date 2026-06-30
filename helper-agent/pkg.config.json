@@ -1,0 +1,8 @@
+{
+  "assets": [
+    "node_modules/pkcs11js/build/Release/pkcs11.node"
+  ],
+  "scripts": [
+    "dist/**/*.js"
+  ]
+}

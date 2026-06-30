@@ -27,6 +27,8 @@ export interface SignJob {
   status: JobStatus;
   originalPath: string;
   signedPath: string | null;
+  preparedPath: string | null;
+  preparedByteRange: number[] | null;
   fileName: string;
   method: SigningMethod | null;
   byteRangeHash: string | null;
