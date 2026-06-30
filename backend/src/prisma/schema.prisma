@@ -1,0 +1,33 @@
+// Phase 2+ database schema. Phase 0 uses in-memory store (src/store/jobs.ts).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SignJob {
+  id            String    @id @default(uuid())
+  status        String    @default("uploaded")
+  fileName      String
+  originalPath  String
+  signedPath    String?
+  method        String?
+  byteRangeHash String?
+  adViewed      Boolean   @default(false)
+  downloadToken String?
+  createdAt     DateTime  @default(now())
+  expiresAt     DateTime
+  auditLogs     AuditLog[]
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  jobId     String
+  job       SignJob  @relation(fields: [jobId], references: [id])
+  event     String
+  createdAt DateTime @default(now())
+}
