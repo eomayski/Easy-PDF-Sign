@@ -48,7 +48,16 @@ jobs:
           sudo apt-get install -y ruby ruby-dev build-essential rpm
           sudo gem install --no-document fpm
 
-      - name: Install dependencies
+      - name: Install dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          npm install -g node-gyp@latest
+          $env:npm_config_node_gyp = (npm root -g) + "\node-gyp\bin\node-gyp.js"
+          npm install
+
+      - name: Install dependencies (non-Windows)
+        if: matrix.os != 'windows-latest'
         run: npm install
 
       - name: Build
