@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: windows-latest
+          - os: windows-2022
             script: build:win-installer
             artifact: easy-pdf-sign-helper-setup.exe
           - os: macos-latest
@@ -39,7 +39,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y build-essential
 
       - name: Install NSIS (Windows)
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-2022'
         run: choco install nsis --no-progress -y
 
       - name: Install fpm (Linux)
