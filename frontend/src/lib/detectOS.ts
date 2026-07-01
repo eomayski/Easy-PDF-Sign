@@ -21,16 +21,18 @@ export interface HelperDownload {
   url: string;
 }
 
+const RELEASES_BASE = 'https://github.com/eomayski/Easy-PDF-Sign/releases/latest/download';
+
 export function getHelperDownload(os: DetectedOS): HelperDownload {
   switch (os) {
     case 'windows':
-      return { label: 'Изтегли за Windows (.exe)', url: '/downloads/easy-pdf-sign-helper-setup.exe' };
+      return { label: 'Изтегли за Windows (.exe)', url: `${RELEASES_BASE}/easy-pdf-sign-helper-setup.exe` };
     case 'macos':
-      return { label: 'Изтегли за macOS (.pkg)', url: '/downloads/easy-pdf-sign-helper.pkg' };
+      return { label: 'Изтегли за macOS', url: `${RELEASES_BASE}/easy-pdf-sign-helper-macos` };
     case 'linux':
-      return { label: 'Изтегли за Linux (.deb)', url: '/downloads/easy-pdf-sign-helper.deb' };
+      return { label: 'Изтегли за Linux (.deb)', url: `${RELEASES_BASE}/easy-pdf-sign-helper.deb` };
     default:
-      return { label: 'Изтегли Easy PDF Sign Helper', url: '/downloads/' };
+      return { label: 'Изтегли Easy PDF Sign Helper', url: 'https://github.com/eomayski/Easy-PDF-Sign/releases/latest' };
   }
 }
 
@@ -38,8 +40,8 @@ export function getHelperDownload(os: DetectedOS): HelperDownload {
 export function getHelperDownloads(os: DetectedOS): HelperDownload[] {
   if (os === 'linux') {
     return [
-      { label: 'Изтегли за Fedora/RHEL (.rpm)', url: '/downloads/easy-pdf-sign-helper.rpm' },
-      { label: 'Изтегли за Debian/Ubuntu (.deb)', url: '/downloads/easy-pdf-sign-helper.deb' },
+      { label: 'Изтегли за Fedora/RHEL (.rpm)', url: `${RELEASES_BASE}/easy-pdf-sign-helper.rpm` },
+      { label: 'Изтегли за Debian/Ubuntu (.deb)', url: `${RELEASES_BASE}/easy-pdf-sign-helper.deb` },
     ];
   }
   return [getHelperDownload(os)];

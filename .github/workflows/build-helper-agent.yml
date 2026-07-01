@@ -2,6 +2,7 @@ name: Build helper-agent
 
 # Native PKCS#11 addon must be compiled on the OS it will run on — pkg cannot
 # cross-compile native modules. This matrix runs each build on its own real OS.
+# Node version must match the pkg target (node18) so pkcs11js ABI aligns.
 on:
   workflow_dispatch:
   push:
@@ -31,7 +32,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '18'
 
       - name: Install build tools (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -71,6 +72,8 @@ jobs:
     needs: build
     if: startsWith(github.ref, 'refs/tags/helper-agent-v')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:

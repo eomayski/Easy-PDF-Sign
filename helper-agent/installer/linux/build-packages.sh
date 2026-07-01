@@ -31,11 +31,10 @@ FPM_ARGS=(
   --after-install "$SCRIPT_DIR/postinstall.sh"
   --before-remove "$SCRIPT_DIR/preuninstall.sh"
   -C "$STAGING"
-  .
 )
 
-fpm "${FPM_ARGS[@]}" -t rpm -p "$RELEASE_DIR/easy-pdf-sign-helper.rpm"
-fpm "${FPM_ARGS[@]}" -t deb -p "$RELEASE_DIR/easy-pdf-sign-helper.deb"
+fpm "${FPM_ARGS[@]}" -t rpm -p "$RELEASE_DIR/easy-pdf-sign-helper.rpm" .
+fpm "${FPM_ARGS[@]}" -t deb -p "$RELEASE_DIR/easy-pdf-sign-helper.deb" .
 
 rm -rf "$STAGING"
 echo "Built: $RELEASE_DIR/easy-pdf-sign-helper.rpm and .deb"
