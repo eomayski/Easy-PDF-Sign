@@ -30,7 +30,7 @@ cd helper-agent && npm run dev
 | Phase | Status | Description |
 |-------|--------|-------------|
 | 0 | ✅ Done | Upload → viewer → draw signature box → appearance config → mock sign → ad-gated download |
-| 1 | 🔲 Stub | Real PAdES via PKCS#11 local helper agent (smart card, Windows first) |
+| 1 | ✅ Done | Real PAdES via PKCS#11 local helper agent (smart card, Windows) — signs with PIN, verified against eIDAS validation site |
 | 2 | 🔲 Stub | Real rewarded ads (GAM) with server-side reward verification + `AdVerifier` |
 | 3 | 🔲 Stub | Cloud QES — Evrotrust REST API via `CloudSignerProvider` |
 | 4 | 🔲 Stub | B-Trust cloud QES |
@@ -50,6 +50,20 @@ cd helper-agent && npm run dev
 - **New ad network:** implement `AdProvider` (frontend) + `AdVerifier` (backend) → controlled by `AD_PROVIDER` env var.
 - **New local signing provider:** implement `LocalSigningProvider` interface in helper-agent → swap via config.
 
+## CI / Release
+
+Helper-agent installers are built and published automatically via GitHub Actions.
+
+**To release a new version:**
+```bash
+git tag helper-agent-v0.x.0
+git push origin helper-agent-v0.x.0
+```
+
+The workflow (`.github/workflows/build-helper-agent.yml`) runs three parallel jobs — `windows-2022`, `ubuntu-latest`, `macos-latest` — and uploads the artifacts as GitHub Release assets. Installer download URLs in `frontend/src/lib/detectOS.ts` point directly to `github.com/eomayski/Easy-PDF-Sign/releases/latest/download/`.
+
+The workflow can also be triggered manually from the Actions tab (without creating a tag) to produce build artifacts without a public release.
+
 ## Where to find things fast
 
 | What | Where |
@@ -63,6 +77,8 @@ cd helper-agent && npm run dev
 | Redux state shape | `frontend/src/store/` |
 | UI primitives | `frontend/src/components/ui/` |
 | Feature modules | `frontend/src/features/{upload,viewer,signature-box,sign-config,signing,download}/` |
+| Installer download URLs | `frontend/src/lib/detectOS.ts` → `getHelperDownloads()` |
+| CI release workflow | `.github/workflows/build-helper-agent.yml` |
 
 ## .env for backend
 

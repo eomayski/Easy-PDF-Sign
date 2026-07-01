@@ -77,13 +77,16 @@ Defined in `tailwind.config.ts`. Key tokens:
 - Primary: `brand-{50..900}` (indigo family)
 - Use token classes (`bg-brand-600`) not hardcoded hex in components.
 
+## Helper agent installer downloads
+
+`src/lib/detectOS.ts` exports `detectOS()` and `getHelperDownloads(os)`. These are used in `SigningStep.tsx` to show OS-specific download links when the helper agent is not detected.
+
+Download URLs point to GitHub Releases (`releases/latest/download/`), not to the backend's `/downloads/` route. To update the URLs, edit the `RELEASES_BASE` constant in `detectOS.ts`.
+
 ## Adding a new signing method (Phase 1 physical)
 
-1. In `SigningStep.tsx`, enable the `physical` method card (remove `disabled` prop).
-2. After `prepareSign` returns `byteRangeHash`, call the helper agent:
-   ```
-   GET  http://127.0.0.1:17357/certificates  → pick certId
-   POST http://127.0.0.1:17357/sign          → { hash, certId } → { cms }
-   ```
-3. Send CMS to `POST /api/sign/complete`.
-4. Then call `confirmAdView` → get `downloadToken`.
+The physical flow is already wired up end-to-end in `SigningStep.tsx` (cert picker modal, agent calls, complete sign). It is gated by `agentStatus === 'available'` — the button is disabled until `/health` responds.
+
+Remaining work is in the helper-agent, not the frontend:
+1. Implement PKCS#11 `listCertificates()` and `signHash()` in the agent.
+2. Once the agent responds correctly, the existing frontend flow works without changes.
