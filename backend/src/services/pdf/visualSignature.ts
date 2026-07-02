@@ -135,7 +135,7 @@ export async function applyVisualSignature(
     }
 
     if (config.freeText) {
-      drawWrappedText(page, config.freeText, innerX, curY, font, labelSize, textColumnW);
+      drawWrappedText(page, config.freeText, innerX, curY, font, nameSize, textColumnW);
     }
   }
 

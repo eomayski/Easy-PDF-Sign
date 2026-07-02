@@ -33,7 +33,7 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
   const [completeSign] = useCompleteSignMutation();
   const [confirmAdView] = useConfirmAdViewMutation();
 
-  const [selectedMethod, setSelectedMethod] = useState<SigningMethod>('mock');
+  const [selectedMethod, setSelectedMethod] = useState<SigningMethod>('physical');
 
   // Physical flow state
   const [certs, setCerts] = useState<CertInfo[]>([]);
@@ -203,22 +203,22 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
 
           <div className="space-y-3">
             <MethodCard
-              value="mock"
-              current={selectedMethod}
-              onChange={setSelectedMethod}
-              title="Демо подпис (без КЕП)"
-              description="Добавя визуален слой без криптографски подпис. Само за тест."
-              badge="Фаза 0"
-              badgeColor="bg-amber-100 text-amber-700"
-            />
-            <MethodCard
               value="physical"
               current={selectedMethod}
               onChange={setSelectedMethod}
               title="Физически КЕП (смарт карта)"
               description="Изисква инсталиран helper agent и смарт карта. Квалифициран PAdES подпис."
-              badge="Фаза 1"
+              badge="КЕП"
               badgeColor="bg-brand-100 text-brand-700"
+            />
+            <MethodCard
+              value="mock"
+              current={selectedMethod}
+              onChange={setSelectedMethod}
+              title="Демо подпис (без КЕП)"
+              description="Добавя визуален слой без криптографски подпис. Само за тест."
+              badge="Демо"
+              badgeColor="bg-amber-100 text-amber-700"
             />
             <MethodCard
               value="cloud"
@@ -226,7 +226,7 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
               onChange={setSelectedMethod}
               title="Облачен КЕП (Evrotrust / B-Trust)"
               description="Подписвате от мобилното приложение на доставчика. Квалифициран PAdES подпис."
-              badge="Фаза 3"
+              badge="Скоро"
               badgeColor="bg-slate-100 text-slate-500"
               disabled
             />
