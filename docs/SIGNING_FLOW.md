@@ -34,6 +34,9 @@ Browser                 Backend
 
 No crypto. The "signed" PDF has a visual stamp but no cryptographic signature.
 
+> **Superseded by Phase 2´.** The ad-confirm step above is being replaced by the
+> account/credit gate described below — see "Phase 2´ — Accounts & Credits gating".
+
 ---
 
 ## Phase 1 — Physical QES (smart card via helper agent)
@@ -62,7 +65,40 @@ The private key NEVER leaves the card. The agent only performs `C_Sign` on the h
 
 ---
 
-## Phase 3 — Cloud QES (Evrotrust / B-Trust)
+## Phase 2´ — Accounts & Credits gating (planned, replaces Phase 0/2 ad-gate)
+
+Full data/billing model in `docs/ACCOUNTS.md`. Signing itself is unaffected — only what
+happens between "PDF is signed" and "PDF is downloaded" changes:
+
+```
+Browser                       Backend
+  │── POST /api/sign/prepare ──────────────► (mock) or
+  │── POST /api/sign/complete ─────────────► (physical, Phase 1)     job.status = "signed"
+  │
+  │── (Download page loads, always) ───────► GET preview of the signed PDF
+  │                                           (no auth required to preview)
+  │
+  │   ── not logged in? ─────────────────────► show login/register prompt
+  │   ── logged in, 0 credits? ───────────────► show "buy 50 credits / €2.90"
+  │                                              or "upgrade to business" prompt
+  │   ── logged in, ≥1 credit or business? ──┐
+  │                                          ▼
+  │── POST /api/download/request ──────────► verify job.status === "signed"
+  │   { jobId }                              verify auth session
+  │                                          atomically debit 1 credit
+  │                                          (skip debit for business accounts)
+  │◄─────────────────────────────────────── { downloadToken, creditsRemaining }
+  │
+  │── GET /api/download/:token ─────────────► stream PDF, delete files
+```
+
+This reuses the existing JWT download-token mechanism (`services/ads/downloadToken.ts`) —
+only the gate *before* token issuance changes, from "ad watched" to "authenticated + has
+credit". Business accounts (monthly subscription) skip the debit entirely.
+
+---
+
+## Phase 3 — Cloud QES (Evrotrust / B-Trust) — on hold, not currently planned
 
 ```
 Browser                 Backend               Provider API    User mobile app

@@ -30,6 +30,9 @@ store/
   signing      { method, status, byteRangeHash, downloadToken, errorMessage }
 ```
 
+`confirmAdView` is being replaced by a `requestDownload` endpoint (Phase 2´ — see below) that
+requires auth and debits a signature credit instead of verifying an ad view.
+
 ## Feature modules (`src/features/`)
 
 | Directory | Key files | Responsibility |
@@ -39,7 +42,15 @@ store/
 | `signature-box/` | `SignatureBox.tsx` | Konva canvas overlay; draw + resize + drag rectangle |
 | `sign-config/` | `SignConfigStep.tsx`, `HandwrittenSignatureModal.tsx` | Appearance options; signature_pad canvas |
 | `signing/` | `SigningStep.tsx`, `signingSlice.ts` | Method picker; orchestrates prepare → (agent) → complete |
-| `download/` | `DownloadStep.tsx` | Download link + "sign new" reset |
+| `download/` | `DownloadStep.tsx` | Renders a preview of the signed PDF (always visible); download button requires login + available credits — see "Accounts & Credits" below |
+
+## Accounts & Credits (Phase 2´ — planned)
+
+Full design in `docs/ACCOUNTS.md`. Frontend implications once built:
+
+- New `auth/` feature module: login/register forms, session state (RTK Query `authApi` + an `auth` slice: `{ userId, email, accountType, credits }`).
+- `DownloadStep.tsx` changes: the signed PDF preview renders unconditionally after signing; the actual download action calls `requestDownload` (replacing `confirmAdView`) which requires the user to be logged in and to have ≥1 credit (or a `business` account). On `401`/`402` responses, show a login prompt or an upsell (buy 50 credits for €2.90 / upgrade to business) instead of the download.
+- New `account/` (or `billing/`) feature module: credit balance display, package purchase, business subscription management, and (business only) custom stamp image upload — reusing the existing `imageDataUrl` concept already in `SignConfigStep.tsx`'s `visualConfig`.
 
 ## Coordinate system — important
 

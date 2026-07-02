@@ -108,37 +108,75 @@ Initiates remote signing with a cloud provider.
 
 ---
 
-## POST /ads/confirm-view
+## ~~POST /ads/confirm-view~~  _(Phase 0, superseded by Phase 2´)_
 
-Confirms ad watch, issues download token.
-
-**Request:**
-```json
-{
-  "jobId": "uuid",
-  "reward": {
-    "provider": "mock",
-    "adSessionId": "session-id",
-    "signalToken": "optional"
-  }
-}
-```
-
-For `provider: "mock"` (Phase 0): auto-confirms without network call.
-
-**Response `200`:**
-```json
-{ "downloadToken": "jwt-string" }
-```
-
-**Response `400`:** job not in `signed` state.
+Historical Phase 0 mechanism: confirmed a mock ad watch and issued a download token.
+Being replaced by `POST /download/request` below, which gates on account + signature
+credits instead of an ad view. Kept here for history; remove once Phase 2´ ships.
 
 ---
 
-## POST /ads/reward-callback  _(Phase 2)_
+## ~~POST /ads/reward-callback~~  _(Phase 2, abandoned)_
 
-Server-to-server callback from the ad network. Format varies by provider.
-Backend stores the confirmation so `/ads/confirm-view` can verify it.
+Was planned as the server-to-server callback from a real ad network (GAM). The rewarded-ads
+approach was abandoned in favor of the account/credits model — see Phase 2´ in `CLAUDE.md`
+and `docs/ACCOUNTS.md`. Do not implement this endpoint.
+
+---
+
+## Accounts & Credits  _(Phase 2´ — planned, not yet implemented)_
+
+Full design in `docs/ACCOUNTS.md`. Endpoint sketch:
+
+### POST /auth/register
+```json
+{ "email": "user@example.bg", "password": "..." }
+```
+Creates a user with 5 free signature credits. **Response `200`:** sets an auth session
+(HttpOnly cookie or JWT) and returns `{ "userId": "uuid", "credits": 5 }`.
+
+### POST /auth/login
+```json
+{ "email": "user@example.bg", "password": "..." }
+```
+**Response `200`:** auth session, same shape as register.
+
+### POST /auth/logout
+Clears the auth session.
+
+### GET /auth/me
+**Response `200`:** `{ "userId": "uuid", "email": "...", "accountType": "free" | "business", "credits": 5 }` or `401` if not authenticated.
+
+### GET /credits/balance  _(auth required)_
+**Response `200`:** `{ "credits": 5, "accountType": "free" | "business" }`.
+
+### POST /credits/purchase  _(auth required)_
+Buys a package: 50 credits for €2.90 (one-time, non-expiring).
+```json
+{ "package": "50-credits" }
+```
+**Response `200`:** `{ "credits": 55, "paymentStatus": "completed" }` (via `PaymentProvider`, e.g. Stripe Checkout — actual flow will involve a redirect/webhook, sketch simplified here).
+
+### POST /billing/subscribe  _(auth required)_
+Starts/renews the business monthly subscription (unlimited credits, custom stamp upload).
+**Response `200`:** `{ "accountType": "business", "subscriptionStatus": "active" }`.
+
+### POST /account/stamp  _(auth required, business accounts only)_
+Uploads and persists a custom stamp/seal image (печат) for reuse across documents.
+**Request:** `multipart/form-data`, field name `image`.
+**Response `200`:** `{ "stampImageUrl": "..." }`. **Response `403`:** account is not `business`.
+
+### POST /download/request  _(auth required — replaces /ads/confirm-view)_
+Verifies the job is `signed`, checks the caller is authenticated, and debits 1 credit
+(skipped for `business` accounts with an active subscription) atomically before issuing
+the download token.
+```json
+{ "jobId": "uuid" }
+```
+**Response `200`:** `{ "downloadToken": "jwt-string", "creditsRemaining": 4 }`.
+**Response `401`:** not authenticated.
+**Response `402`:** authenticated but 0 credits remaining (client should prompt to buy a package or upgrade to business).
+**Response `400`:** job not in `signed` state.
 
 ---
 

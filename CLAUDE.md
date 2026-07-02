@@ -29,25 +29,37 @@ cd helper-agent && npm run dev
 
 | Phase | Status | Description |
 |-------|--------|-------------|
-| 0 | ✅ Done | Upload → viewer → draw signature box → appearance config → mock sign → ad-gated download |
+| 0 | ✅ Done | Upload → viewer → draw signature box → appearance config → mock sign → gated download |
 | 1 | ✅ Done | Real PAdES via PKCS#11 local helper agent (smart card, Windows) — signs with PIN, verified against eIDAS validation site |
-| 2 | 🔲 Stub | Real rewarded ads (GAM) with server-side reward verification + `AdVerifier` |
-| 3 | 🔲 Stub | Cloud QES — Evrotrust REST API via `CloudSignerProvider` |
-| 4 | 🔲 Stub | B-Trust cloud QES |
-| 5 | 🔲 — | PAdES B-T/B-LT (timestamps), i18n, user accounts |
+| 2 | ❌ Abandoned | Rewarded ads (GAM). Decision: dropped in favor of an account + signature-credit model — see Phase 2´ and `docs/ACCOUNTS.md` |
+| 2´ | 🔲 Planned | User accounts, signature credits, paid packages, business subscriptions. Replaces the ad-gated download from Phase 0 — see "Accounts & Credits" below and `docs/ACCOUNTS.md` |
+| 3 | ⏸ On hold | Cloud QES — Evrotrust REST API via `CloudSignerProvider` (deprioritized, not currently planned) |
+| 4 | ⏸ On hold | B-Trust cloud QES (deprioritized, not currently planned) |
+| 5 | 🔲 — | PAdES B-T/B-LT (timestamps), i18n |
+
+## Accounts & Credits (Phase 2´)
+
+Replaces the ad-gated download model from Phase 0. Full design in `docs/ACCOUNTS.md`; summary:
+
+- **Signing stays open; downloading is gated.** Anyone can upload and run `/sign/prepare` / `/sign/complete` without an account. The download page always renders a preview of the signed PDF. The **download itself** requires the user to be logged in **and** to hold at least 1 signature credit (or hold a business subscription).
+- **Credit debit happens at download time, not at sign time** — 1 credit is debited per successful download of a signed document. This mirrors where the old `/ads/confirm-view` gate sat in the flow, so the surrounding architecture (server-issued JWT download token) is reused.
+- **New accounts start with 5 free credits.**
+- **Paid packages:** 50 credits for €2.90, one-time purchase, credits do not expire.
+- **Business accounts:** monthly subscription, unlimited signature credits (no debit), and can upload/store a custom stamp image (печат) reused across documents.
+- Credit balance checks + debits must be an atomic server-side operation (DB transaction) to avoid race conditions from parallel download requests.
 
 ## Critical architectural constraints
 
 - **PAdES must be applied server-side.** The byte-range hash and placeholder injection require controlled access to the full PDF byte stream. Client-side signing is not possible.
 - **Private keys never leave the smart card.** The helper agent performs `signHash(hash)` on-card via PKCS#11 and returns only the detached CMS blob.
-- **Download is gated by a server-signed JWT.** The token is issued only after the backend verifies the ad was watched (server-to-server callback). Client-side button hiding is not sufficient.
+- **Download is gated by a server-signed JWT.** The token is issued only after the backend verifies the user is authenticated and has debited an available signature credit (or holds a business subscription). Client-side button hiding is not sufficient. (This replaces the old ad-watched gate from Phase 0/2 — see "Accounts & Credits" above.)
 - **Cyrillic text in PDFs requires a custom TTF.** pdf-lib's `StandardFonts` (Helvetica etc.) are WinAnsi-only. The backend loads Arial from `C:\Windows\Fonts\arial.ttf` (Windows) or a system fallback. See `backend/src/services/pdf/fonts.ts`.
 - **Coordinate system inversion.** pdf.js renders top-left origin; pdf-lib uses bottom-left origin. The transform is isolated in `frontend/src/lib/coords.ts` — do not inline this math elsewhere.
 
 ## Key extension points (adding Phase N features)
 
-- **New signing provider (cloud):** implement `CloudSignerProvider` interface → add to `backend/src/services/providers/`.
-- **New ad network:** implement `AdProvider` (frontend) + `AdVerifier` (backend) → controlled by `AD_PROVIDER` env var.
+- **New signing provider (cloud):** implement `CloudSignerProvider` interface → add to `backend/src/services/providers/` (on hold, not currently planned — see Phase 3/4).
+- **New payment provider (packages / subscriptions):** implement a `PaymentProvider` interface (e.g. Stripe) for one-time package purchases and business monthly billing → replaces the abandoned `AdProvider`/`AdVerifier` extension point.
 - **New local signing provider:** implement `LocalSigningProvider` interface in helper-agent → swap via config.
 
 ## CI / Release
@@ -69,6 +81,7 @@ The workflow can also be triggered manually from the Actions tab (without creati
 | What | Where |
 |------|-------|
 | Signing flow details | `docs/SIGNING_FLOW.md` |
+| Accounts, credits & billing plan | `docs/ACCOUNTS.md` |
 | Viewport→PDF coordinate transform | `frontend/src/lib/coords.ts` |
 | API contract | `docs/API.md` |
 | Job state machine | `backend/src/store/jobs.ts` |
