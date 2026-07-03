@@ -63,7 +63,7 @@ Applies visual signature appearance. For mock method: signs immediately. For phy
 { "jobId": "uuid", "byteRangeHash": "hex-encoded-sha256" }
 ```
 
-**Response `501`** — for `physical` and `cloud` methods until Phase 1/3 is implemented.
+**Response `501`** — for the `cloud` method (Phase 3, on hold). `physical` is fully implemented (Phase 1).
 
 ---
 

@@ -14,7 +14,7 @@ Browsers cannot call PKCS#11 directly. The private key must never leave the card
 |--------|------|---------|----------|
 | GET | `/health` | — | `{ ok, version, pkcs11 }` |
 | GET | `/certificates` | — | `CertInfo[]` |
-| POST | `/sign` | `{ hash: string (hex), certId: string }` | `{ cms: string (hex) }` — currently 501 |
+| POST | `/sign` | `{ hash: string (hex), certId: string }` | `{ cms: string (hex) }` |
 
 ## Interface contract
 

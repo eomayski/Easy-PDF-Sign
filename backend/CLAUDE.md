@@ -1,6 +1,6 @@
 # Backend — Agent Context
 
-Express + TypeScript server. Handles PDF upload, visual signature rendering, signing orchestration, ad verification, and download token issuance.
+Express + TypeScript server. Handles PDF upload, visual signature rendering, signing orchestration, and download token issuance.
 
 ## Run
 
@@ -16,7 +16,7 @@ npm run build # tsc → dist/
 | POST | `/api/upload` | `routes/upload.ts` | Accepts PDF, stores to `UPLOAD_DIR`, returns `{ jobId, numPages }` |
 | GET | `/api/files/:jobId` | `routes/files.ts` | Streams original PDF to the viewer |
 | POST | `/api/sign/prepare` | `routes/sign.ts` | Applies visual layer; for mock: also saves signed PDF; for physical: returns hash |
-| POST | `/api/sign/complete` | `routes/sign.ts` | Embeds CMS from helper-agent (Phase 1, currently 501) |
+| POST | `/api/sign/complete` | `routes/sign.ts` | Embeds CMS from helper-agent (Phase 1, working end-to-end) |
 | POST | `/api/sign/cloud/start` | _(Phase 3 — on hold, not planned for now)_ | Initiates cloud signing |
 | GET | `/api/jobs/:id` | _(Phase 3 — on hold)_ | Polls cloud signing status |
 | POST | `/api/ads/confirm-view` | `routes/ads.ts` | ❌ Phase 0 mechanism, being replaced by `/api/download/request` (Phase 2´, see below) |

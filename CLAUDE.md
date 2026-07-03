@@ -82,6 +82,7 @@ The workflow can also be triggered manually from the Actions tab (without creati
 |------|-------|
 | Signing flow details | `docs/SIGNING_FLOW.md` |
 | Accounts, credits & billing plan | `docs/ACCOUNTS.md` |
+| Deployment plan (Railway / Vercel / Supabase) | `docs/DEPLOYMENT.md` |
 | Viewport→PDF coordinate transform | `frontend/src/lib/coords.ts` |
 | API contract | `docs/API.md` |
 | Job state machine | `backend/src/store/jobs.ts` |

@@ -57,7 +57,7 @@ recommended, matching the existing TS/Express stack) for at least:
 User {
   id
   email (unique)
-  passwordHash
+  // no passwordHash — credentials live in Supabase Auth (auth.users); our id mirrors its sub claim
   accountType: "free" | "business"
   credits: number                 // ignored/unused for "business"
   subscriptionStatus?: "active" | "past_due" | "canceled"
@@ -98,7 +98,10 @@ in case a Bulgarian/EU processor is preferred later. Implement under
 
 ## Open questions / not yet decided
 
-- Auth mechanism specifics (session cookie vs JWT, password reset flow, email verification).
+- ~~Auth mechanism specifics~~ — **decided (2026-07-03): Supabase Auth.** Frontend uses
+  `@supabase/supabase-js` (register/login/reset/verification out of the box); backend
+  verifies the Supabase-issued JWT in an Express middleware and keeps credits in the same
+  Supabase Postgres via Prisma. See `docs/DEPLOYMENT.md`.
 - Whether package credits ever expire (currently: no).
 - Refund/edge-case handling if a download debit succeeds but the actual file stream fails.
 - VAT invoicing requirements for EU consumers (Bulgaria-based seller, EU-wide buyers).

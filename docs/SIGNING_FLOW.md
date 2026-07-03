@@ -117,7 +117,8 @@ Browser                 Backend               Provider API    User mobile app
   │                                ◄──────────────────────────
   │                                           { status: "completed", cms }
   │◄──────────────────── { ready: true } ─────
-  │── POST /api/ads/confirm-view ──────────────────────────────────────────────────
+  │── POST /api/download/request ──────────────────────────────────────────────────
+  │   (Phase 2´ credit gate — see above)
   │── GET /api/download/:token ──────────────►
 ```
 

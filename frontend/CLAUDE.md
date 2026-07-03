@@ -94,10 +94,6 @@ Defined in `tailwind.config.ts`. Key tokens:
 
 Download URLs point to GitHub Releases (`releases/latest/download/`), not to the backend's `/downloads/` route. To update the URLs, edit the `RELEASES_BASE` constant in `detectOS.ts`.
 
-## Adding a new signing method (Phase 1 physical)
+## Physical signing (Phase 1 — complete)
 
-The physical flow is already wired up end-to-end in `SigningStep.tsx` (cert picker modal, agent calls, complete sign). It is gated by `agentStatus === 'available'` — the button is disabled until `/health` responds.
-
-Remaining work is in the helper-agent, not the frontend:
-1. Implement PKCS#11 `listCertificates()` and `signHash()` in the agent.
-2. Once the agent responds correctly, the existing frontend flow works without changes.
+The physical flow is fully working end-to-end in `SigningStep.tsx` (cert picker modal, agent calls, complete sign). It is gated by `agentStatus === 'available'` — the button is disabled until the helper agent's `/health` responds.
