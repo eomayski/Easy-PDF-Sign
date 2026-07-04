@@ -8,7 +8,10 @@
  *                       ← { cms: string (hex DER) }
  *
  * Security:
- *  - CORS restricted to APP_ORIGIN only
+ *  - CORS restricted to an explicit origin allowlist (APP_ORIGIN env var,
+ *    comma-separated, overrides the built-in defaults). Keep this strict:
+ *    the origin check is what stops arbitrary websites from asking the
+ *    local agent to sign hashes.
  *  - Listens on loopback 127.0.0.1
  *  - PIN is read from PKCS11_PIN env var — never travels over HTTP
  *
@@ -23,17 +26,25 @@ import cors from 'cors';
 import { isPkcs11Available, listCertificates, signHash } from './pkcs11Signer';
 
 const PORT = parseInt(process.env.AGENT_PORT ?? '17357', 10);
-const ALLOWED_ORIGIN = process.env.APP_ORIGIN ?? 'http://localhost:5173';
+
+// Production site + local dev. APP_ORIGIN (comma-separated) overrides.
+const DEFAULT_ORIGINS = [
+  'https://easy-pdf-sign-nine.vercel.app',
+  'http://localhost:5173',
+];
+const ALLOWED_ORIGINS = process.env.APP_ORIGIN
+  ? process.env.APP_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean)
+  : DEFAULT_ORIGINS;
 
 const app = express();
-app.use(cors({ origin: ALLOWED_ORIGIN }));
+app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json());
 
 // ─── Health ──────────────────────────────────────────────────────────────────
 
 app.get('/health', (_req, res) => {
   const pkcs11 = isPkcs11Available();
-  res.json({ ok: true, version: '1.0.0', pkcs11: pkcs11 ? 'available' : 'unavailable' });
+  res.json({ ok: true, version: '0.2.0', pkcs11: pkcs11 ? 'available' : 'unavailable' });
 });
 
 // ─── Certificates ────────────────────────────────────────────────────────────

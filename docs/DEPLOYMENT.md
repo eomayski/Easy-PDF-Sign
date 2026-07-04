@@ -8,8 +8,8 @@ project live (auth incl. Google OAuth + Postgres, migration applied), backend bu
 
 | Piece | Where | Plan / cost |
 |-------|-------|-------------|
-| Backend (Express) | **Railway** | 30-day trial ($5 one-time credit), then **Hobby $5/mo** (includes $5 usage credit) |
-| Frontend (Vite static build) | **Vercel** | Free (Hobby) |
+| Backend (Express) | **Railway** — `https://easy-pdf-sign-production.up.railway.app` | 30-day trial ($5 one-time credit), then **Hobby $5/mo** (includes $5 usage credit) |
+| Frontend (Vite static build) | **Vercel** — `https://easy-pdf-sign-nine.vercel.app` | Free (Hobby) |
 | Auth + Postgres (Phase 2´) | **Supabase** | Free tier; pick **EU region (Frankfurt)** for GDPR data residency |
 | Helper agent installers | GitHub Releases | Already in place (`.github/workflows/build-helper-agent.yml`) |
 

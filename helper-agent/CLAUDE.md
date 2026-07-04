@@ -77,6 +77,6 @@ npm run dev
 ## Security requirements
 
 - Listen only on `127.0.0.1` (loopback), not `0.0.0.0`.
-- CORS origin must be restricted to the app domain (`APP_ORIGIN` env var).
+- CORS is an explicit origin **allowlist** — defaults to the production site + `http://localhost:5173`; `APP_ORIGIN` env var (comma-separated) overrides. Keep it strict: the origin check is what stops arbitrary websites from asking the local agent to sign hashes.
 - No PIN or private key material ever crosses the HTTP boundary.
 - TLS on localhost (self-signed via `mkcert`) before production distribution.
