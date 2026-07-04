@@ -19,26 +19,29 @@ npm run build # tsc → dist/
 | POST | `/api/sign/complete` | `routes/sign.ts` | Embeds CMS from helper-agent (Phase 1, working end-to-end) |
 | POST | `/api/sign/cloud/start` | _(Phase 3 — on hold, not planned for now)_ | Initiates cloud signing |
 | GET | `/api/jobs/:id` | _(Phase 3 — on hold)_ | Polls cloud signing status |
-| POST | `/api/ads/confirm-view` | `routes/ads.ts` | ❌ Phase 0 mechanism, being replaced by `/api/download/request` (Phase 2´, see below) |
-| POST | `/api/ads/reward-callback` | `routes/ads.ts` | ❌ Abandoned — real ads (GAM) will not be implemented |
+| GET | `/api/files/:jobId/signed` | `routes/files.ts` | Streams signed PDF inline for the download-page preview (no auth — preview is always visible) |
+| GET | `/api/auth/me` | `routes/auth.ts` | Current user + credits; provisions the user row (+5 signup bonus) on first call. Register/login live in Supabase, not here |
+| GET | `/api/credits/balance` | `routes/credits.ts` | Credit balance for the logged-in user |
+| POST | `/api/credits/purchase` | `routes/credits.ts` | **501 stub** until the Stripe/`PaymentProvider` milestone |
+| POST | `/api/download/request` | `routes/download.ts` | Replaced `/api/ads/confirm-view`: requires auth, atomically debits 1 credit (skipped for business), issues the download JWT |
 | GET | `/api/download/:token` | `routes/download.ts` | Validates JWT, streams signed PDF, deletes files |
 
-### Planned — Accounts & Credits (Phase 2´)
+### Auth (Phase 2´)
 
-Full design in `docs/ACCOUNTS.md` and endpoint sketch in `docs/API.md`. Summary of new routes to add:
+`middleware/auth.ts` → `requireAuth` verifies the Supabase JWT from `Authorization: Bearer`
+(JWKS via `SUPABASE_URL`, HS256 fallback via `SUPABASE_JWT_SECRET`) and sets `req.auth =
+{ userId, email }`. `services/users.ts` owns user provisioning (`ensureUser`, idempotent
+signup bonus) and the atomic credit debit (`debitCreditForDownload` — conditional
+`updateMany` with `credits >= 1`, so parallel downloads can't double-spend).
 
-| Method | Path | What it does |
-|--------|------|--------------|
-| POST | `/api/auth/register` | Create user, grant 5 free credits, start session |
-| POST | `/api/auth/login` / `/api/auth/logout` | Session management |
-| GET | `/api/auth/me` | Current user + credit balance |
-| GET | `/api/credits/balance` | Credit balance for the logged-in user |
-| POST | `/api/credits/purchase` | Buy a package (50 credits / €2.90) via a new `PaymentProvider` |
-| POST | `/api/billing/subscribe` | Start/renew business monthly subscription (unlimited credits) |
-| POST | `/api/account/stamp` | Business accounts only — upload persisted stamp image (печат) |
-| POST | `/api/download/request` | Replaces `/api/ads/confirm-view`: requires auth, atomically debits 1 credit (skipped for business), issues the download JWT |
+Users/credits live in Postgres via Prisma (`prisma/schema.prisma`, client singleton in
+`src/db/prisma.ts`). Jobs are still in-memory (`store/jobs.ts`).
 
-This will need a persistent user store (Prisma/DB) — the current in-memory `store/jobs.ts` model is not sufficient once accounts exist.
+### Planned — payments milestone (rest of Phase 2´)
+
+`POST /api/billing/subscribe` (business subscription), `POST /api/account/stamp` (business
+stamp upload), and a real `PaymentProvider` implementation (Stripe) behind
+`services/billing/PaymentProvider.ts`.
 
 ## Service layer
 
@@ -61,12 +64,14 @@ Phase 0 mock: applies visual layer only, no crypto. Returns modified PDF bytes.
 | `CloudSignerProvider.ts` | Interface | 3 |
 | `MockCloudProvider.ts` | Auto-approves after 2 s | dev/test |
 
-### `services/ads/downloadToken.ts`
-Issues and verifies single-use JWT download tokens. Secret from `DOWNLOAD_TOKEN_SECRET` env var.
-This stays as-is under Phase 2´ — only what happens *before* token issuance changes (credit debit instead of ad verification). Consider moving/renaming out of `services/ads/` once the ad code path is deleted.
+### `services/download/downloadToken.ts`
+Issues and verifies single-use JWT download tokens. Secret from `DOWNLOAD_TOKEN_SECRET` env var. (Moved here from `services/ads/` when the ad code path was deleted.)
 
-### `services/billing/` _(planned, Phase 2´)_
-Will hold the `PaymentProvider` interface (packages + business subscriptions) and the atomic credit-debit logic used by `/api/download/request`. See `docs/ACCOUNTS.md`.
+### `services/users.ts`
+User provisioning + credit accounting (see "Auth" above).
+
+### `services/billing/PaymentProvider.ts`
+Interface only for now — Stripe implementation arrives with the payments milestone. See `docs/ACCOUNTS.md`.
 
 ## Job state machine
 
@@ -76,7 +81,9 @@ Implemented in `store/jobs.ts` (in-memory, Phase 0). Replace with Prisma queries
 uploaded → prepared → signed → downloaded
 ```
 
-Files are deleted from disk on `downloaded` transition (GDPR).
+Files are **not** deleted on download — the download token stays reusable (free
+re-download after an interrupted stream). A sweeper in `store/jobs.ts` deletes the job
+and all its PDFs 1 hour after upload (GDPR retention bound).
 
 ## Key env vars
 
@@ -87,6 +94,10 @@ Files are deleted from disk on `downloaded` transition (GDPR).
 | `DOWNLOAD_TOKEN_SECRET` | (required) | Use a long random string in prod |
 | `DOWNLOAD_TOKEN_TTL_SECONDS` | 3600 | |
 | `FRONTEND_ORIGIN` | `http://localhost:5173` | CORS allow-list |
+| `SUPABASE_URL` | (required for auth) | Project URL — JWKS fetched from `<url>/auth/v1/.well-known/jwks.json` |
+| `SUPABASE_JWT_SECRET` | (optional) | Legacy HS256 secret; only for older Supabase projects |
+| `DATABASE_URL` | (required for auth) | Supabase Postgres, transaction pooler (`:6543`, `?pgbouncer=true`) — Prisma runtime |
+| `DIRECT_URL` | (required for auth) | Supabase Postgres, session pooler (`:5432`) — `prisma migrate` |
 
 Phase 3+ env vars (cloud QES providers) are in `.env.example` with TODO comments.
 

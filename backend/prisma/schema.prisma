@@ -1,0 +1,61 @@
+// Phase 2´ database schema: users + signature credits.
+// Jobs are still in-memory (src/store/jobs.ts); the SignJob/AuditLog models
+// below are kept for the planned migration of the job store to the DB.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // transaction-mode pooler (runtime queries)
+  directUrl = env("DIRECT_URL") // session-mode pooler (migrations)
+}
+
+// id mirrors the Supabase auth.users id (JWT `sub`) — credentials live in
+// Supabase Auth, never here.
+model User {
+  id                  String              @id
+  email               String              @unique
+  accountType         String              @default("free") // "free" | "business"
+  credits             Int                 @default(0) // unused for "business"
+  subscriptionStatus  String? // "active" | "past_due" | "canceled"
+  subscriptionRenewsAt DateTime?
+  stampImageUrl       String? // business only
+  createdAt           DateTime            @default(now())
+  creditTransactions  CreditTransaction[]
+}
+
+model CreditTransaction {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  delta     Int // +5 signup bonus, +50 package purchase, -1 download debit
+  reason    String // "signup_bonus" | "package_purchase" | "download_debit" | "refund"
+  jobId     String? // for download_debit
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model SignJob {
+  id            String     @id @default(uuid())
+  status        String     @default("uploaded")
+  fileName      String
+  originalPath  String
+  signedPath    String?
+  method        String?
+  byteRangeHash String?
+  downloadToken String?
+  createdAt     DateTime   @default(now())
+  expiresAt     DateTime
+  auditLogs     AuditLog[]
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  jobId     String
+  job       SignJob  @relation(fields: [jobId], references: [id])
+  event     String
+  createdAt DateTime @default(now())
+}

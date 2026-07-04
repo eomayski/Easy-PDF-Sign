@@ -1,7 +1,10 @@
 # Accounts & Credits (Phase 2´)
 
-Status: **planned, not yet implemented.** This replaces the Phase 2 rewarded-ads plan
-(GAM), which has been abandoned. See the Phase table in `CLAUDE.md`.
+Status: **Milestone 1 implemented & verified E2E** (2026-07-04) — Supabase Auth
+(email+password + Google OAuth), signup bonus, atomic download debit, free re-download,
+TTL cleanup. **Milestone 2 pending** — Stripe packages, business subscriptions, stamp
+upload. This replaces the abandoned Phase 2 rewarded-ads plan (GAM). See the Phase table
+in `CLAUDE.md`.
 
 ## Why
 
@@ -103,7 +106,10 @@ in case a Bulgarian/EU processor is preferred later. Implement under
   verifies the Supabase-issued JWT in an Express middleware and keeps credits in the same
   Supabase Postgres via Prisma. See `docs/DEPLOYMENT.md`.
 - Whether package credits ever expire (currently: no).
-- Refund/edge-case handling if a download debit succeeds but the actual file stream fails.
+- ~~Refund/edge-case handling if a download debit succeeds but the stream fails~~ —
+  **resolved (2026-07-04):** the download token is reusable while valid; the debit happens
+  once at token issuance and re-downloads are free. Files are kept until the job TTL
+  (1 h after upload) instead of being deleted right after the first download.
 - VAT invoicing requirements for EU consumers (Bulgaria-based seller, EU-wide buyers).
 - Whether anonymous (pre-login) jobs get associated with a user retroactively after they
   log in mid-flow, or whether login must happen before the download page is reached.

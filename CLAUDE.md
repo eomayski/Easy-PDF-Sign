@@ -32,7 +32,7 @@ cd helper-agent && npm run dev
 | 0 | ✅ Done | Upload → viewer → draw signature box → appearance config → mock sign → gated download |
 | 1 | ✅ Done | Real PAdES via PKCS#11 local helper agent (smart card, Windows) — signs with PIN, verified against eIDAS validation site |
 | 2 | ❌ Abandoned | Rewarded ads (GAM). Decision: dropped in favor of an account + signature-credit model — see Phase 2´ and `docs/ACCOUNTS.md` |
-| 2´ | 🔲 Planned | User accounts, signature credits, paid packages, business subscriptions. Replaces the ad-gated download from Phase 0 — see "Accounts & Credits" below and `docs/ACCOUNTS.md` |
+| 2´ | 🔨 In progress | Milestone 1 **done & verified E2E**: Supabase Auth (email+parola и Google OAuth), 5 credits при регистрация, атомарен дебит при download, preview + безплатно повторно изтегляне, TTL чистач. Pending: paid packages (Stripe), business subscriptions + stamp. See `docs/ACCOUNTS.md` |
 | 3 | ⏸ On hold | Cloud QES — Evrotrust REST API via `CloudSignerProvider` (deprioritized, not currently planned) |
 | 4 | ⏸ On hold | B-Trust cloud QES (deprioritized, not currently planned) |
 | 5 | 🔲 — | PAdES B-T/B-LT (timestamps), i18n |
@@ -42,7 +42,7 @@ cd helper-agent && npm run dev
 Replaces the ad-gated download model from Phase 0. Full design in `docs/ACCOUNTS.md`; summary:
 
 - **Signing stays open; downloading is gated.** Anyone can upload and run `/sign/prepare` / `/sign/complete` without an account. The download page always renders a preview of the signed PDF. The **download itself** requires the user to be logged in **and** to hold at least 1 signature credit (or hold a business subscription).
-- **Credit debit happens at download time, not at sign time** — 1 credit is debited per successful download of a signed document. This mirrors where the old `/ads/confirm-view` gate sat in the flow, so the surrounding architecture (server-issued JWT download token) is reused.
+- **Credit debit happens at download time, not at sign time** — 1 credit is debited per signed document, at download-token issuance (`POST /download/request`). Re-downloads with the same token are free (retry after an interrupted stream); files live max 1 h after upload (TTL sweeper).
 - **New accounts start with 5 free credits.**
 - **Paid packages:** 50 credits for €2.90, one-time purchase, credits do not expire.
 - **Business accounts:** monthly subscription, unlimited signature credits (no debit), and can upload/store a custom stamp image (печат) reused across documents.

@@ -1,6 +1,8 @@
 # Deployment
 
-Status: **decided, not yet executed** (decision date: 2026-07-03).
+Status: **decided 2026-07-03; not yet executed.** Prereqs done (2026-07-04): Supabase
+project live (auth incl. Google OAuth + Postgres, migration applied), backend build runs
+`prisma generate`, frontend env uses the publishable key.
 
 ## Stack decision
 
@@ -72,9 +74,9 @@ Replace `<railway-backend-domain>` with the domain Railway assigns (Settings →
 Decision for the "auth mechanism" open question in `docs/ACCOUNTS.md`: **Supabase Auth**, one project providing both auth and the Postgres that Prisma will use for `User` / `CreditTransaction` / jobs.
 
 - Create the project in **eu-central (Frankfurt)**.
-- **Frontend:** `@supabase/supabase-js` handles register/login/password reset. Needs `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (public, safe to expose).
+- **Frontend:** `@supabase/supabase-js` handles register/login/password reset. Needs `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` (the `sb_publishable_...` key; public, safe to expose).
 - **Backend:** stays the source of truth for credits. It does **not** use the Supabase client for auth — it just verifies the Supabase-issued JWT from the `Authorization: Bearer` header in an Express middleware, then trusts `sub` as the user id. Credit debit remains an atomic Postgres transaction via Prisma (see `docs/ACCOUNTS.md`, "Where the credit is debited").
-- **Prisma:** point `DATABASE_URL` at the Supabase Postgres (use the **connection-pooler** string on Railway). Supabase's `auth.users` is managed by Supabase; our `User` row references it by id and holds `accountType`, `credits`, etc.
+- **Prisma:** two connection strings (Dashboard → Connect → ORMs → Prisma): `DATABASE_URL` = transaction pooler (`:6543`, `?pgbouncer=true`) for runtime, `DIRECT_URL` = session pooler (`:5432`) for migrations. Supabase's `auth.users` is managed by Supabase; our `User` row references it by id and holds `accountType`, `credits`, etc.
 
 ---
 
@@ -86,10 +88,14 @@ The installed agent enforces CORS via `APP_ORIGIN` (see `helper-agent/.env.examp
 
 ## Go-live checklist
 
-- [ ] Railway service up, `/api` reachable on the Railway domain
+- [ ] Railway service up, `/api/health` reachable on the Railway domain
 - [ ] Strong `DOWNLOAD_TOKEN_SECRET` set in Railway (not the dev value)
 - [ ] `FRONTEND_ORIGIN` set to the Vercel URL
 - [ ] `frontend/vercel.json` rewrites point at the Railway domain
-- [ ] Full mock-sign flow works on the production URLs (upload → sign → download)
+- [ ] Vercel env vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`
+- [ ] Supabase → Authentication → URL Configuration: **Site URL** = Vercel domain; add it to **Redirect URLs** too (keep `http://localhost:5173` for dev)
+- [ ] Google OAuth consent screen published (test mode only allows whitelisted users)
+- [ ] Supabase custom SMTP configured (built-in sender is ~2 emails/hour — fine for dev, not for real users)
+- [ ] Full flow works on the production URLs: регистрация → 5 credits → mock sign → preview → download → free re-download
 - [ ] Helper-agent release with production `APP_ORIGIN`; physical signing verified from the production site
-- [ ] (Phase 2´) Supabase project in Frankfurt, `DATABASE_URL` wired, JWT verification middleware in place
+- [x] Supabase project in Frankfurt, `DATABASE_URL`/`DIRECT_URL` wired, JWT middleware in place, migration `phase2_users_credits` applied

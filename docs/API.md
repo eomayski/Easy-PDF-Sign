@@ -108,65 +108,42 @@ Initiates remote signing with a cloud provider.
 
 ---
 
-## ~~POST /ads/confirm-view~~  _(Phase 0, superseded by Phase 2´)_
+## GET /files/:jobId/signed  _(Phase 2´)_
 
-Historical Phase 0 mechanism: confirmed a mock ad watch and issued a download token.
-Being replaced by `POST /download/request` below, which gates on account + signature
-credits instead of an ad view. Kept here for history; remove once Phase 2´ ships.
+Streams the **signed** PDF inline for the download-page preview. No auth required —
+the preview is always visible (see `docs/ACCOUNTS.md`, "Core rule"); only the actual
+download is gated.
 
----
-
-## ~~POST /ads/reward-callback~~  _(Phase 2, abandoned)_
-
-Was planned as the server-to-server callback from a real ad network (GAM). The rewarded-ads
-approach was abandoned in favor of the account/credits model — see Phase 2´ in `CLAUDE.md`
-and `docs/ACCOUNTS.md`. Do not implement this endpoint.
+**Response `200`:** `application/pdf` stream, `Content-Disposition: inline`.
+**Response `404`:** job missing or not in `signed` state.
 
 ---
 
-## Accounts & Credits  _(Phase 2´ — planned, not yet implemented)_
+## Accounts & Credits  _(Phase 2´ — auth + credits implemented; payments pending)_
 
-Full design in `docs/ACCOUNTS.md`. Endpoint sketch:
+Full design in `docs/ACCOUNTS.md`. **Register / login / logout / password reset are not
+backend endpoints** — the frontend talks to Supabase Auth directly via
+`@supabase/supabase-js`, and the backend only verifies the Supabase-issued JWT sent as
+`Authorization: Bearer <token>`.
 
-### POST /auth/register
-```json
-{ "email": "user@example.bg", "password": "..." }
-```
-Creates a user with 5 free signature credits. **Response `200`:** sets an auth session
-(HttpOnly cookie or JWT) and returns `{ "userId": "uuid", "credits": 5 }`.
-
-### POST /auth/login
-```json
-{ "email": "user@example.bg", "password": "..." }
-```
-**Response `200`:** auth session, same shape as register.
-
-### POST /auth/logout
-Clears the auth session.
-
-### GET /auth/me
+### GET /auth/me  _(auth required)_
+Also provisions the local user row (with the 5-credit signup bonus) on first call.
 **Response `200`:** `{ "userId": "uuid", "email": "...", "accountType": "free" | "business", "credits": 5 }` or `401` if not authenticated.
 
 ### GET /credits/balance  _(auth required)_
 **Response `200`:** `{ "credits": 5, "accountType": "free" | "business" }`.
 
-### POST /credits/purchase  _(auth required)_
-Buys a package: 50 credits for €2.90 (one-time, non-expiring).
-```json
-{ "package": "50-credits" }
-```
-**Response `200`:** `{ "credits": 55, "paymentStatus": "completed" }` (via `PaymentProvider`, e.g. Stripe Checkout — actual flow will involve a redirect/webhook, sketch simplified here).
+### POST /credits/purchase  _(auth required — **501 stub**)_
+Will buy a package (50 credits for €2.90, one-time, non-expiring) via `PaymentProvider`
+(Stripe) in the payments milestone. Currently returns `501`.
 
-### POST /billing/subscribe  _(auth required)_
+### POST /billing/subscribe  _(planned — payments milestone)_
 Starts/renews the business monthly subscription (unlimited credits, custom stamp upload).
-**Response `200`:** `{ "accountType": "business", "subscriptionStatus": "active" }`.
 
-### POST /account/stamp  _(auth required, business accounts only)_
+### POST /account/stamp  _(planned — payments milestone, business accounts only)_
 Uploads and persists a custom stamp/seal image (печат) for reuse across documents.
-**Request:** `multipart/form-data`, field name `image`.
-**Response `200`:** `{ "stampImageUrl": "..." }`. **Response `403`:** account is not `business`.
 
-### POST /download/request  _(auth required — replaces /ads/confirm-view)_
+### POST /download/request  _(auth required — replaced /ads/confirm-view)_
 Verifies the job is `signed`, checks the caller is authenticated, and debits 1 credit
 (skipped for `business` accounts with an active subscription) atomically before issuing
 the download token.
@@ -177,16 +154,20 @@ the download token.
 **Response `401`:** not authenticated.
 **Response `402`:** authenticated but 0 credits remaining (client should prompt to buy a package or upgrade to business).
 **Response `400`:** job not in `signed` state.
+**Response `404`:** job not found.
 
 ---
 
 ## GET /download/:token
 
-One-time download. Token is a short-lived JWT containing `jobId`.
+Download with a short-lived JWT containing `jobId`. **Reusable while valid** — the credit
+is debited once at `/download/request`; re-downloads with the same token are free, so an
+interrupted stream can be retried.
 
 **Response `200`:** `application/pdf` stream with `Content-Disposition: attachment`.
 
-After streaming, both the original and signed PDFs are deleted from disk.
+Files are NOT deleted after streaming — a TTL sweeper removes the job and its PDFs
+1 hour after upload (GDPR retention bound).
 
 **Response `401`:** invalid or expired token.
-**Response `404`:** file already downloaded or cleaned up.
+**Response `404`:** files cleaned up (job TTL expired).

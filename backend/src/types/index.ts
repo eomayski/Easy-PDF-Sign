@@ -32,14 +32,7 @@ export interface SignJob {
   fileName: string;
   method: SigningMethod | null;
   byteRangeHash: string | null;
-  adViewed: boolean;
   downloadToken: string | null;
   createdAt: Date;
   expiresAt: Date;
-}
-
-export interface AdReward {
-  provider: string;
-  adSessionId: string;
-  signalToken?: string;
 }

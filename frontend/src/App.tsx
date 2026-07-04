@@ -1,13 +1,18 @@
-import { useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { Stepper } from './components/ui/Stepper';
 import { UploadStep } from './features/upload/UploadStep';
 import { ViewerStep } from './features/viewer/ViewerStep';
 import { SignConfigStep } from './features/sign-config/SignConfigStep';
 import { SigningStep } from './features/signing/SigningStep';
 import { DownloadStep } from './features/download/DownloadStep';
-import { resetUpload } from './features/upload/uploadSlice';
+import { AuthModal } from './features/auth/AuthModal';
+import { AccountWidget } from './features/auth/AccountWidget';
+import { useSupabaseSession } from './features/auth/useSupabaseSession';
+import { resetUpload, setUploadResult } from './features/upload/uploadSlice';
 import { reset as resetSigning } from './features/signing/signingSlice';
+import { clearFlow, loadFlow, saveFlow } from './lib/flowPersistence';
+import type { RootState } from './store';
 import type { SignaturePlacement, VisualSignatureConfig } from './types';
 
 const STEPS = [
@@ -18,19 +23,46 @@ const STEPS = [
 ];
 
 export function App() {
+  useSupabaseSession();
   const dispatch = useDispatch();
-  const [step, setStep] = useState(0);
-  const [placement, setPlacement] = useState<SignaturePlacement | null>(null);
-  const [visualConfig, setVisualConfig] = useState<VisualSignatureConfig | null>(null);
-  const [downloadToken, setDownloadToken] = useState<string | null>(null);
+  const upload = useSelector((s: RootState) => s.upload);
+  const { jobId } = upload;
+
+  // Restore the flow after a full page reload (e.g. the Google OAuth redirect)
+  const [restored] = useState(() => loadFlow());
+  const [step, setStep] = useState(restored?.step ?? 0);
+  const [placement, setPlacement] = useState<SignaturePlacement | null>(
+    restored?.placement ?? null,
+  );
+  const [visualConfig, setVisualConfig] = useState<VisualSignatureConfig | null>(
+    restored?.visualConfig ?? null,
+  );
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (restored) dispatch(setUploadResult(restored.upload));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep the persisted flow in sync while a job is in progress
+  useEffect(() => {
+    if (jobId && upload.fileName) {
+      saveFlow({
+        step,
+        upload: { jobId, numPages: upload.numPages, fileName: upload.fileName },
+        placement,
+        visualConfig,
+      });
+    }
+  }, [step, jobId, upload.numPages, upload.fileName, placement, visualConfig]);
 
   const handleReset = () => {
+    clearFlow();
     dispatch(resetUpload());
     dispatch(resetSigning());
     setStep(0);
     setPlacement(null);
     setVisualConfig(null);
-    setDownloadToken(null);
   };
 
   return (
@@ -54,15 +86,18 @@ export function App() {
             </svg>
             <span className="text-lg font-bold text-slate-900">Easy PDF Sign</span>
           </div>
-          <span className="hidden text-xs text-slate-400 sm:block">
-            Квалифициран електронен подпис (PAdES / eIDAS)
-          </span>
+          <div className="flex items-center gap-4">
+            <span className="hidden text-xs text-slate-400 lg:block">
+              Квалифициран електронен подпис (PAdES / eIDAS)
+            </span>
+            <AccountWidget onLoginClick={() => setAuthModalOpen(true)} />
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8">
         {/* Stepper (hidden on download step) */}
-        {step < 4 && downloadToken === null && (
+        {step < 4 && (
           <div className="mb-8">
             <Stepper steps={STEPS} current={step} />
           </div>
@@ -96,17 +131,20 @@ export function App() {
             placement={placement}
             visualConfig={visualConfig}
             onBack={() => setStep(2)}
-            onDone={(token) => {
-              setDownloadToken(token);
-              setStep(4);
-            }}
+            onDone={() => setStep(4)}
           />
         )}
 
-        {step === 4 && downloadToken && (
-          <DownloadStep downloadToken={downloadToken} onReset={handleReset} />
+        {step === 4 && jobId && (
+          <DownloadStep
+            jobId={jobId}
+            onReset={handleReset}
+            onRequireLogin={() => setAuthModalOpen(true)}
+          />
         )}
       </main>
+
+      <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
     </div>
   );
 }

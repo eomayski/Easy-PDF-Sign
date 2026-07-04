@@ -5,12 +5,8 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Spinner } from '../../components/ui/Spinner';
 import { Modal } from '../../components/ui/Modal';
-import { setMethod, setStatus, setDownloadToken, setError } from './signingSlice';
-import {
-  usePrepareSignMutation,
-  useCompleteSignMutation,
-  useConfirmAdViewMutation,
-} from '../../store/api';
+import { setMethod, setStatus, setError } from './signingSlice';
+import { usePrepareSignMutation, useCompleteSignMutation } from '../../store/api';
 import { viewportToPdfRect } from '../../lib/coords';
 import { detectOS, getHelperDownloads } from '../../lib/detectOS';
 import type { SigningMethod, SignaturePlacement, VisualSignatureConfig } from '../../types';
@@ -21,7 +17,7 @@ const AGENT_BASE = 'http://127.0.0.1:17357';
 interface Props {
   placement: SignaturePlacement;
   visualConfig: VisualSignatureConfig;
-  onDone: (downloadToken: string) => void;
+  onDone: () => void;
   onBack: () => void;
 }
 
@@ -31,7 +27,6 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
   const { status } = useSelector((s: RootState) => s.signing);
   const [prepareSign] = usePrepareSignMutation();
   const [completeSign] = useCompleteSignMutation();
-  const [confirmAdView] = useConfirmAdViewMutation();
 
   const [selectedMethod, setSelectedMethod] = useState<SigningMethod>('physical');
 
@@ -61,19 +56,6 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
       cancelled = true;
     };
   }, [selectedMethod]);
-
-  // ─── Mock flow ─────────────────────────────────────────────────────────────
-
-  async function runMockFlow(jobIdVal: string) {
-    dispatch(setStatus('completing'));
-    const adResult = await confirmAdView({
-      jobId: jobIdVal,
-      reward: { provider: 'mock', adSessionId: 'mock-session' },
-    }).unwrap();
-    dispatch(setDownloadToken(adResult.downloadToken));
-    dispatch(setStatus('done'));
-    onDone(adResult.downloadToken);
-  }
 
   // ─── Physical flow ─────────────────────────────────────────────────────────
 
@@ -149,14 +131,10 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
       dispatch(setStatus('completing'));
       await completeSign({ jobId, cms }).unwrap();
 
-      // 4. Ad confirmation + download token
-      const adResult = await confirmAdView({
-        jobId,
-        reward: { provider: 'mock', adSessionId: 'mock-session' },
-      }).unwrap();
-      dispatch(setDownloadToken(adResult.downloadToken));
+      // Download token idва по-късно: DownloadStep гейтва изтеглянето
+      // с login + кредит (Phase 2´).
       dispatch(setStatus('done'));
-      onDone(adResult.downloadToken);
+      onDone();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Грешка при подписването.';
       setAgentError(msg);
@@ -174,14 +152,15 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
       if (selectedMethod === 'mock') {
         dispatch(setStatus('preparing'));
         const pdfRect = viewportToPdfRect(placement.rect, placement.scale, placement.pageHeight);
-        const prepResult = await prepareSign({
+        await prepareSign({
           jobId,
           page: placement.page,
           pdfRect,
           visualConfig,
           method: 'mock',
         }).unwrap();
-        await runMockFlow(prepResult.jobId);
+        dispatch(setStatus('done'));
+        onDone();
       } else if (selectedMethod === 'physical') {
         await runPhysicalFlow();
       }

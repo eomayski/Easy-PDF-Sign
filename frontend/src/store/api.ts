@@ -1,4 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { supabase } from '../lib/supabase';
 import type { PdfRect, VisualSignatureConfig, SigningMethod } from '../types';
 
 export interface UploadResponse {
@@ -16,19 +17,30 @@ export interface CompleteSignResponse {
   status: string;
 }
 
-export interface ConfirmAdViewResponse {
-  downloadToken: string;
+export interface MeResponse {
+  userId: string;
+  email: string;
+  accountType: 'free' | 'business';
+  credits: number;
 }
 
-export interface AdReward {
-  provider: string;
-  adSessionId: string;
-  signalToken?: string;
+export interface RequestDownloadResponse {
+  downloadToken: string;
+  creditsRemaining: number;
 }
 
 export const api = createApi({
   reducerPath: 'api',
-  baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
+  baseQuery: fetchBaseQuery({
+    baseUrl: '/api',
+    prepareHeaders: async (headers) => {
+      if (!supabase) return headers;
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (token) headers.set('authorization', `Bearer ${token}`);
+      return headers;
+    },
+  }),
   endpoints: (builder) => ({
     uploadPdf: builder.mutation<UploadResponse, FormData>({
       query: (formData) => ({
@@ -64,9 +76,12 @@ export const api = createApi({
     pollJob: builder.query<{ status: string; ready: boolean }, string>({
       query: (jobId) => `/jobs/${jobId}`,
     }),
-    confirmAdView: builder.mutation<ConfirmAdViewResponse, { jobId: string; reward: AdReward }>({
+    getMe: builder.query<MeResponse, void>({
+      query: () => '/auth/me',
+    }),
+    requestDownload: builder.mutation<RequestDownloadResponse, { jobId: string }>({
       query: (body) => ({
-        url: '/ads/confirm-view',
+        url: '/download/request',
         method: 'POST',
         body,
       }),
@@ -79,5 +94,6 @@ export const {
   usePrepareSignMutation,
   useCompleteSignMutation,
   usePollJobQuery,
-  useConfirmAdViewMutation,
+  useGetMeQuery,
+  useRequestDownloadMutation,
 } = api;

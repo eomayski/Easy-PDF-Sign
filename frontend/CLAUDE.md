@@ -25,13 +25,12 @@ State for the current step lives in `App.tsx` (local useState). Cross-step data 
 
 ```
 store/
-  api          RTK Query endpoints (uploadPdf, prepareSign, completeSign, confirmAdView)
+  api          RTK Query endpoints (uploadPdf, prepareSign, completeSign, getMe, requestDownload)
+                — prepareHeaders attaches the Supabase Bearer token automatically
   upload       { jobId, numPages, fileName }
-  signing      { method, status, byteRangeHash, downloadToken, errorMessage }
+  signing      { method, status, byteRangeHash, errorMessage }
+  auth         { user: { userId, email, accountType, credits } | null, sessionChecked }
 ```
-
-`confirmAdView` is being replaced by a `requestDownload` endpoint (Phase 2´ — see below) that
-requires auth and debits a signature credit instead of verifying an ad view.
 
 ## Feature modules (`src/features/`)
 
@@ -41,16 +40,17 @@ requires auth and debits a signature credit instead of verifying an ad view.
 | `viewer/` | `PdfViewer.tsx`, `ViewerStep.tsx` | pdf.js rendering; page navigation |
 | `signature-box/` | `SignatureBox.tsx` | Konva canvas overlay; draw + resize + drag rectangle |
 | `sign-config/` | `SignConfigStep.tsx`, `HandwrittenSignatureModal.tsx` | Appearance options; signature_pad canvas |
-| `signing/` | `SigningStep.tsx`, `signingSlice.ts` | Method picker; orchestrates prepare → (agent) → complete |
-| `download/` | `DownloadStep.tsx` | Renders a preview of the signed PDF (always visible); download button requires login + available credits — see "Accounts & Credits" below |
+| `signing/` | `SigningStep.tsx`, `signingSlice.ts` | Method picker; orchestrates prepare → (agent) → complete. Does NOT mint the download token — that moved to DownloadStep (Phase 2´) |
+| `auth/` | `AuthModal.tsx`, `AccountWidget.tsx`, `authSlice.ts`, `useSupabaseSession.ts` | Login/register (email+password + Google OAuth via Supabase), header widget with credit balance |
+| `download/` | `DownloadStep.tsx`, `SignedPdfPreview.tsx` | pdf.js canvas preview (always visible); download button calls `requestDownload` (401 → AuthModal, 402 → upsell modal). Token cached in sessionStorage — re-downloads are free |
 
-## Accounts & Credits (Phase 2´ — planned)
+## Accounts & Credits (Phase 2´ — milestone 1 implemented)
 
-Full design in `docs/ACCOUNTS.md`. Frontend implications once built:
+Full design in `docs/ACCOUNTS.md`. Implementation notes:
 
-- New `auth/` feature module: login/register forms, session state (RTK Query `authApi` + an `auth` slice: `{ userId, email, accountType, credits }`).
-- `DownloadStep.tsx` changes: the signed PDF preview renders unconditionally after signing; the actual download action calls `requestDownload` (replacing `confirmAdView`) which requires the user to be logged in and to have ≥1 credit (or a `business` account). On `401`/`402` responses, show a login prompt or an upsell (buy 50 credits for €2.90 / upgrade to business) instead of the download.
-- New `account/` (or `billing/`) feature module: credit balance display, package purchase, business subscription management, and (business only) custom stamp image upload — reusing the existing `imageDataUrl` concept already in `SignConfigStep.tsx`'s `visualConfig`.
+- Supabase client in `src/lib/supabase.ts` (env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`; null-safe when unset). `useSupabaseSession()` (called in `App.tsx`) syncs the Supabase session → `GET /auth/me` → `auth` slice.
+- Google OAuth does a full-page redirect — the signing flow survives it via `src/lib/flowPersistence.ts` (sessionStorage: step, upload info, placement, visualConfig). This also makes F5 survivable.
+- Pending (payments milestone): `account/`/`billing/` module — package purchase (Stripe), business subscription management, custom stamp upload.
 
 ## Coordinate system — important
 
