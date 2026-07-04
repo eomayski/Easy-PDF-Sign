@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AGENT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 RELEASE_DIR="$AGENT_DIR/release"
 STAGING="$RELEASE_DIR/_staging"
-VERSION="0.1.0"
+VERSION="$(node -p "require('$AGENT_DIR/package.json').version")"
 
 mkdir -p "$STAGING/usr/local/bin"
 mkdir -p "$STAGING/usr/lib/systemd/user"

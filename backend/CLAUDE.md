@@ -50,7 +50,7 @@ Renders the visible signature box onto the PDF using **pdf-lib**.
 ⚠️ Must embed a custom TTF (via `@pdf-lib/fontkit`) because pdf-lib's built-in fonts don't support Cyrillic. Font loaded from `services/pdf/fonts.ts`.
 
 ### `services/pdf/fonts.ts`
-Loads a system TTF with Cyrillic support (Arial on Windows, Liberation/DejaVu on Linux).  
+Loads a Cyrillic-capable TTF: the bundled `assets/fonts/NotoSans-Regular.ttf` first (required on bare containers — Railway's image has no fonts), then system fonts (Arial on Windows, Liberation/Noto on Linux).  
 Font is cached in memory after first load — do not call `loadCyrillicFont()` in a hot path.
 
 ### `services/signing/mockSigner.ts`

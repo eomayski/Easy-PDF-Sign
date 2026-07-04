@@ -8,7 +8,7 @@ AGENT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 RELEASE_DIR="$AGENT_DIR/release"
 BUILD_DIR="$RELEASE_DIR/_deb"
 NAME="easy-pdf-sign-helper"
-VERSION="0.1.0"
+VERSION="$(node -p "require('$AGENT_DIR/package.json').version")"
 
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR/DEBIAN"

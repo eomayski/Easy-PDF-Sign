@@ -53,7 +53,7 @@ Replaces the ad-gated download model from Phase 0. Full design in `docs/ACCOUNTS
 - **PAdES must be applied server-side.** The byte-range hash and placeholder injection require controlled access to the full PDF byte stream. Client-side signing is not possible.
 - **Private keys never leave the smart card.** The helper agent performs `signHash(hash)` on-card via PKCS#11 and returns only the detached CMS blob.
 - **Download is gated by a server-signed JWT.** The token is issued only after the backend verifies the user is authenticated and has debited an available signature credit (or holds a business subscription). Client-side button hiding is not sufficient. (This replaces the old ad-watched gate from Phase 0/2 — see "Accounts & Credits" above.)
-- **Cyrillic text in PDFs requires a custom TTF.** pdf-lib's `StandardFonts` (Helvetica etc.) are WinAnsi-only. The backend loads Arial from `C:\Windows\Fonts\arial.ttf` (Windows) or a system fallback. See `backend/src/services/pdf/fonts.ts`.
+- **Cyrillic text in PDFs requires a custom TTF.** pdf-lib's `StandardFonts` (Helvetica etc.) are WinAnsi-only. The backend uses the bundled `backend/assets/fonts/NotoSans-Regular.ttf` (needed on bare containers like Railway), with OS fonts as fallback. See `backend/src/services/pdf/fonts.ts`.
 - **Coordinate system inversion.** pdf.js renders top-left origin; pdf-lib uses bottom-left origin. The transform is isolated in `frontend/src/lib/coords.ts` — do not inline this math elsewhere.
 
 ## Key extension points (adding Phase N features)

@@ -1,16 +1,20 @@
 import fs from 'fs';
 import os from 'os';
+import path from 'path';
+
+// Bundled with the repo (assets/fonts/, OFL/Apache-licensed) so the backend
+// works on bare containers (Railway's Debian image ships no fonts at all).
+// Resolves correctly from both src/ (ts-node-dev) and dist/ (production).
+const BUNDLED_FONT = path.join(__dirname, '../../../assets/fonts/NotoSans-Regular.ttf');
 
 /**
- * Returns the bytes of a system font that supports Cyrillic characters.
- * Uses OS-specific paths — no downloading, no bundling required.
- *
- * Priority list per platform is ordered by availability likelihood.
+ * Returns the bytes of a Cyrillic-capable font: the bundled Noto Sans first,
+ * then OS-specific system fallbacks.
  */
 export function loadCyrillicFont(): Buffer {
   const platform = os.platform();
 
-  const candidates: string[] =
+  const systemCandidates: string[] =
     platform === 'win32'
       ? [
           'C:\\Windows\\Fonts\\arial.ttf',
@@ -39,6 +43,7 @@ export function loadCyrillicFont(): Buffer {
             '/usr/share/fonts/liberation/LiberationSans-Regular.ttf',
           ];
 
+  const candidates = [BUNDLED_FONT, ...systemCandidates];
   for (const p of candidates) {
     if (fs.existsSync(p)) {
       return fs.readFileSync(p);
@@ -46,8 +51,8 @@ export function loadCyrillicFont(): Buffer {
   }
 
   throw new Error(
-    `No Cyrillic-capable system font found. Checked: ${candidates.join(', ')}. ` +
-      'Please install Arial or a similar Cyrillic font on this system.',
+    `No Cyrillic-capable font found. Checked: ${candidates.join(', ')}. ` +
+      'The bundled assets/fonts/NotoSans-Regular.ttf appears to be missing from the deployment.',
   );
 }
 
