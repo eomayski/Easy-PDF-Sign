@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://easy-pdf-sign-production.up.railway.app/api/:path*"
+    },
+    {
+      "source": "/downloads/:path*",
+      "destination": "https://easy-pdf-sign-production.up.railway.app/downloads/:path*"
+    }
+  ]
+}
