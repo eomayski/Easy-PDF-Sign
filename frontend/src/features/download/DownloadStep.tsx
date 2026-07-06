@@ -18,7 +18,7 @@ interface Props {
 export function DownloadStep({ jobId, onReset, onRequireLogin }: Props) {
   const dispatch = useDispatch();
   const { fileName } = useSelector((s: RootState) => s.upload);
-  const { user } = useSelector((s: RootState) => s.auth);
+  const { user, syncing } = useSelector((s: RootState) => s.auth);
   const [requestDownload, { isLoading }] = useRequestDownloadMutation();
   const [showUpsell, setShowUpsell] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,7 +104,7 @@ export function DownloadStep({ jobId, onReset, onRequireLogin }: Props) {
         {/* Preview — always visible, regardless of auth state */}
         <SignedPdfPreview jobId={jobId} />
 
-        {!user && !downloadToken && (
+        {!user && !downloadToken && !syncing && (
           <p className="mb-3 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-700">
             За да изтеглите подписания документ, е необходимо да влезете в акаунта си. Новите
             акаунти получават <strong>5 безплатни кредита</strong>.
@@ -126,13 +126,15 @@ export function DownloadStep({ jobId, onReset, onRequireLogin }: Props) {
           variant="primary"
           className="mb-3 w-full"
           onClick={handleDownload}
-          loading={isLoading}
+          loading={isLoading || syncing}
         >
           {downloadToken
             ? 'Изтегли отново (безплатно)'
-            : user
-              ? 'Изтегли подписания PDF (1 кредит)'
-              : 'Влез и изтегли'}
+            : syncing
+              ? 'Влизане...'
+              : user
+                ? 'Изтегли подписания PDF (1 кредит)'
+                : 'Влез и изтегли'}
         </Button>
 
         <Button

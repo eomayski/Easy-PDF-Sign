@@ -3,7 +3,7 @@ import { useDispatch } from 'react-redux';
 import type { AppDispatch } from '../../store';
 import { api } from '../../store/api';
 import { supabase } from '../../lib/supabase';
-import { clearAuth, setAuthUser } from './authSlice';
+import { clearAuth, setAuthSyncing, setAuthUser } from './authSlice';
 
 /**
  * Keeps the auth slice in sync with the Supabase session: on app start and on
@@ -22,6 +22,7 @@ export function useSupabaseSession() {
     let active = true;
 
     const syncMe = async () => {
+      dispatch(setAuthSyncing(true));
       try {
         const me = await dispatch(
           api.endpoints.getMe.initiate(undefined, { forceRefetch: true }),

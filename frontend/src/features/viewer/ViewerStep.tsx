@@ -17,16 +17,25 @@ export function ViewerStep({ onNext, onBack }: Props) {
   const [pageCount, setPageCount] = useState(0);
   const [dims, setDims] = useState<PageDimensions | null>(null);
   const [rect, setRect] = useState<ViewportRect | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
 
   const handleDims = useCallback((d: PageDimensions) => {
     setDims(d);
     setRect(null); // reset box when navigating pages
+    setWarning(null);
   }, []);
 
   const canContinue = rect && rect.width > 60 && rect.height > 30;
 
   const handleNext = () => {
-    if (!canContinue || !dims) return;
+    if (!canContinue || !dims) {
+      setWarning(
+        rect
+          ? 'Зоната за подпис е твърде малка — уголемете правоъгълника.'
+          : 'Не е избрана позиция за подписа. Начертайте правоъгълник върху страницата, като натиснете и влачите.',
+      );
+      return;
+    }
     onNext({
       page: currentPage,
       rect,
@@ -84,7 +93,10 @@ export function ViewerStep({ onNext, onBack }: Props) {
                   width={dims.widthPx}
                   height={dims.heightPx}
                   rect={rect}
-                  onChange={setRect}
+                  onChange={(r) => {
+                    setRect(r);
+                    if (r) setWarning(null);
+                  }}
                 />
               ) : undefined
             }
@@ -96,13 +108,19 @@ export function ViewerStep({ onNext, onBack }: Props) {
             ✓ Зоната за подпис е избрана. Можете да продължите.
           </p>
         )}
+
+        {warning && !canContinue && (
+          <p className="mt-2 rounded-xl bg-amber-50 px-4 py-3 text-center text-sm text-amber-700">
+            {warning}
+          </p>
+        )}
       </div>
 
       <div className="flex w-full max-w-3xl justify-between">
         <Button variant="secondary" onClick={onBack}>
           ← Назад
         </Button>
-        <Button variant="primary" disabled={!canContinue} onClick={handleNext}>
+        <Button variant="primary" onClick={handleNext}>
           Конфигурирай изглед →
         </Button>
       </div>

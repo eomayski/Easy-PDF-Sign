@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '../../store';
 import { Card } from '../../components/ui/Card';
@@ -8,7 +8,7 @@ import { Modal } from '../../components/ui/Modal';
 import { setMethod, setStatus, setError } from './signingSlice';
 import { usePrepareSignMutation, useCompleteSignMutation } from '../../store/api';
 import { viewportToPdfRect } from '../../lib/coords';
-import { detectOS, getHelperDownloads } from '../../lib/detectOS';
+import { detectOS, getHelperDownloads, isOlderVersion, LATEST_HELPER_VERSION } from '../../lib/detectOS';
 import type { SigningMethod, SignaturePlacement, VisualSignatureConfig } from '../../types';
 import type { CertInfo } from './types';
 
@@ -36,26 +36,34 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
   const [showCertPicker, setShowCertPicker] = useState(false);
   const [agentError, setAgentError] = useState<string | null>(null);
   const [agentStatus, setAgentStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
+  const [agentVersion, setAgentVersion] = useState<string | null>(null);
 
   const isBusy = status === 'preparing' || status === 'awaiting-agent' || status === 'completing';
+
+  const checkAgent = useCallback(() => {
+    setAgentStatus('checking');
+    fetch(`${AGENT_BASE}/health`, { signal: AbortSignal.timeout(2000) })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`health ${res.status}`);
+        const body = (await res.json()) as { version?: string };
+        setAgentVersion(body.version ?? null);
+        setAgentStatus('available');
+      })
+      .catch(() => setAgentStatus('unavailable'));
+  }, []);
 
   // Ping the local helper agent whenever the physical method is selected,
   // so we can show an install prompt instead of a confusing connection error.
   useEffect(() => {
     if (selectedMethod !== 'physical') return;
-    let cancelled = false;
-    setAgentStatus('checking');
-    fetch(`${AGENT_BASE}/health`, { signal: AbortSignal.timeout(2000) })
-      .then((res) => {
-        if (!cancelled) setAgentStatus(res.ok ? 'available' : 'unavailable');
-      })
-      .catch(() => {
-        if (!cancelled) setAgentStatus('unavailable');
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedMethod]);
+    checkAgent();
+  }, [selectedMethod, checkAgent]);
+
+  // Старият хелпър работи, но нова версия носи поправки — банер, не блокада.
+  const agentOutdated =
+    agentStatus === 'available' &&
+    agentVersion !== null &&
+    isOlderVersion(agentVersion, LATEST_HELPER_VERSION);
 
   // ─── Physical flow ─────────────────────────────────────────────────────────
 
@@ -236,24 +244,29 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
               За подписване със смарт карта е необходимо да инсталирате локалния помощен агент.
               Инсталирайте го веднъж — след това ще работи автоматично.
             </p>
-            <div className="flex flex-wrap gap-2">
-              {getHelperDownloads(detectOS()).map((dl) => (
-                <a
-                  key={dl.url}
-                  href={dl.url}
-                  className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
-                >
-                  ↓ {dl.label}
-                </a>
-              ))}
-            </div>
+            <HelperDownloadLinks />
             <button
-              onClick={() => {
-                setAgentStatus('checking');
-                fetch(`${AGENT_BASE}/health`, { signal: AbortSignal.timeout(2000) })
-                  .then((res) => setAgentStatus(res.ok ? 'available' : 'unavailable'))
-                  .catch(() => setAgentStatus('unavailable'));
-              }}
+              onClick={checkAgent}
+              className="ml-3 text-amber-700 underline hover:text-amber-900"
+            >
+              Провери отново
+            </button>
+          </div>
+        )}
+
+        {selectedMethod === 'physical' && agentOutdated && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm">
+            <p className="font-semibold text-amber-800 mb-1">
+              Налична е нова версия на Easy PDF Sign Helper
+            </p>
+            <p className="text-amber-700 mb-3">
+              Използвате версия {agentVersion}, а най-новата е {LATEST_HELPER_VERSION}. Можете
+              да подпишете и сега, но препоръчваме да обновите — новите версии съдържат
+              поправки и подобрения.
+            </p>
+            <HelperDownloadLinks />
+            <button
+              onClick={checkAgent}
               className="ml-3 text-amber-700 underline hover:text-amber-900"
             >
               Провери отново
@@ -336,6 +349,24 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
           </div>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+// ─── HelperDownloadLinks ──────────────────────────────────────────────────────
+
+function HelperDownloadLinks() {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {getHelperDownloads(detectOS()).map((dl) => (
+        <a
+          key={dl.url}
+          href={dl.url}
+          className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+        >
+          ↓ {dl.label}
+        </a>
+      ))}
     </div>
   );
 }

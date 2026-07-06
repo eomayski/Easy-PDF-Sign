@@ -16,6 +16,25 @@ export function detectOS(): DetectedOS {
   return 'unknown';
 }
 
+/**
+ * Най-новата версия на helper agent-а (същата като helper-agent/package.json).
+ * Бумп-ва се при всеки release — SigningStep я сравнява с /health.version,
+ * за да покаже банер „налична е нова версия“.
+ */
+export const LATEST_HELPER_VERSION = '0.2.2';
+
+/** true ако версия a е по-стара от b (напр. '0.2.0' < '0.2.2') */
+export function isOlderVersion(a: string, b: string): boolean {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] ?? 0;
+    const y = pb[i] ?? 0;
+    if (x !== y) return x < y; // NaN сравнения са false → неразпознат формат ≠ „стар“
+  }
+  return false;
+}
+
 export interface HelperDownload {
   label: string;
   url: string;
