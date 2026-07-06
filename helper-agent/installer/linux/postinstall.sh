@@ -8,17 +8,24 @@ if command -v systemctl >/dev/null 2>&1; then
     # which a root scriptlet doesn't inherit — set them explicitly.
     TUID="$(id -u "$TARGET" 2>/dev/null)"
     if [ -n "$TUID" ] && [ -d "/run/user/$TUID" ]; then
+      # 'restart' (not 'enable --now') so an already-running old binary is
+      # replaced by the freshly installed one on upgrade.
       su -s /bin/sh "$TARGET" -c \
         "XDG_RUNTIME_DIR=/run/user/$TUID \
          DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$TUID/bus \
          systemctl --user daemon-reload && \
          XDG_RUNTIME_DIR=/run/user/$TUID \
          DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$TUID/bus \
-         systemctl --user enable --now easy-pdf-sign-helper.service" \
+         systemctl --user enable easy-pdf-sign-helper.service && \
+         XDG_RUNTIME_DIR=/run/user/$TUID \
+         DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$TUID/bus \
+         systemctl --user restart easy-pdf-sign-helper.service" \
         2>/dev/null || true
     fi
   else
-    systemctl --user enable --now easy-pdf-sign-helper.service 2>/dev/null || true
+    systemctl --user daemon-reload 2>/dev/null || true
+    systemctl --user enable easy-pdf-sign-helper.service 2>/dev/null || true
+    systemctl --user restart easy-pdf-sign-helper.service 2>/dev/null || true
   fi
 fi
 # Fallback: the xdg autostart .desktop entry starts the agent on next login
