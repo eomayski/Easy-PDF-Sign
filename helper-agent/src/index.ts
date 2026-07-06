@@ -29,6 +29,7 @@ const PORT = parseInt(process.env.AGENT_PORT ?? '17357', 10);
 
 // Production site + local dev. APP_ORIGIN (comma-separated) overrides.
 const DEFAULT_ORIGINS = [
+  'https://pdf-easy.online',
   'https://easy-pdf-sign-nine.vercel.app',
   'http://localhost:5173',
 ];

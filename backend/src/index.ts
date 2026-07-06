@@ -12,7 +12,9 @@ import downloadRouter from './routes/download';
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '4000', 10);
 
-app.use(cors({ origin: process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173' }));
+const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173')
+  .split(',').map((o) => o.trim()).filter(Boolean);
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json({ limit: '10mb' }));
 
 app.use('/api/upload', uploadRouter);
