@@ -1,6 +1,6 @@
 {
   "name": "easy-pdf-sign-helper-agent",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "description": "Local PKCS#11 signing agent for Easy PDF Sign (Phase 1)",
   "scripts": {

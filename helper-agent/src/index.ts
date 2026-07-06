@@ -45,7 +45,7 @@ app.use(express.json());
 
 app.get('/health', (_req, res) => {
   const pkcs11 = isPkcs11Available();
-  res.json({ ok: true, version: '0.2.2', pkcs11: pkcs11 ? 'available' : 'unavailable' });
+  res.json({ ok: true, version: '0.2.3', pkcs11: pkcs11 ? 'available' : 'unavailable' });
 });
 
 // ─── Certificates ────────────────────────────────────────────────────────────

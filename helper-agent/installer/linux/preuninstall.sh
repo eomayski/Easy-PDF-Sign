@@ -10,24 +10,31 @@ case "${1:-0}" in
   *) exit 0 ;;         # upgrade/reinstall → leave the service running
 esac
 
-if command -v systemctl >/dev/null 2>&1; then
-  TARGET="${SUDO_USER:-}"
-  if [ -n "$TARGET" ]; then
-    # systemctl --user needs the target user's runtime dir + session bus,
-    # which a root scriptlet doesn't inherit — set them explicitly.
-    TUID="$(id -u "$TARGET" 2>/dev/null)"
-    if [ -n "$TUID" ] && [ -d "/run/user/$TUID" ]; then
-      su -s /bin/sh "$TARGET" -c \
-        "XDG_RUNTIME_DIR=/run/user/$TUID \
-         DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$TUID/bus \
-         systemctl --user stop easy-pdf-sign-helper.service 2>/dev/null; \
-         XDG_RUNTIME_DIR=/run/user/$TUID \
-         DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$TUID/bus \
-         systemctl --user disable easy-pdf-sign-helper.service 2>/dev/null" \
-        || true
-    fi
-  else
-    systemctl --user stop easy-pdf-sign-helper.service 2>/dev/null || true
-    systemctl --user disable easy-pdf-sign-helper.service 2>/dev/null || true
-  fi
+command -v systemctl >/dev/null 2>&1 || exit 0
+
+# Same user-resolution logic as postinstall.sh: $SUDO_USER for terminal
+# installs, every active session (/run/user/<uid>) for PackageKit/Discover.
+user_systemctl() {
+  _uid="$1"; _user="$2"; shift 2
+  su -s /bin/sh "$_user" -c \
+    "XDG_RUNTIME_DIR=/run/user/$_uid \
+     DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$_uid/bus \
+     systemctl --user $*" 2>/dev/null || true
+}
+
+if [ -n "${SUDO_USER:-}" ]; then
+  UIDS="$(id -u "$SUDO_USER" 2>/dev/null)"
+else
+  UIDS=""
+  for _d in /run/user/*; do
+    [ -d "$_d" ] && UIDS="$UIDS ${_d##*/}"
+  done
 fi
+
+for _uid in $UIDS; do
+  [ "$_uid" -ge 1000 ] 2>/dev/null || continue   # skip system users (gdm, sddm…)
+  [ -d "/run/user/$_uid" ] || continue
+  _user="$(id -nu "$_uid" 2>/dev/null)" || continue
+  user_systemctl "$_uid" "$_user" stop easy-pdf-sign-helper.service
+  user_systemctl "$_uid" "$_user" disable easy-pdf-sign-helper.service
+done
