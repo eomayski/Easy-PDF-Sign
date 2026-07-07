@@ -44,7 +44,7 @@ Replaces the ad-gated download model from Phase 0. Full design in `docs/ACCOUNTS
 - **Signing stays open; downloading is gated.** Anyone can upload and run `/sign/prepare` / `/sign/complete` without an account. The download page always renders a preview of the signed PDF. The **download itself** requires the user to be logged in **and** to hold at least 1 signature credit (or hold a business subscription).
 - **Credit debit happens at download time, not at sign time** — 1 credit is debited per signed document, at download-token issuance (`POST /download/request`). Re-downloads with the same token are free (retry after an interrupted stream); files live max 1 h after upload (TTL sweeper).
 - **New accounts start with 5 free credits.**
-- **Paid packages:** 50 credits for €2.90, one-time purchase, credits do not expire.
+- **Paid packages:** 50 credits for €2.99, one-time purchase, credits do not expire.
 - **Business accounts:** monthly subscription, unlimited signature credits (no debit), and can upload/store a custom stamp image (печат) reused across documents.
 - Credit balance checks + debits must be an atomic server-side operation (DB transaction) to avoid race conditions from parallel download requests.
 

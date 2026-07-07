@@ -25,7 +25,7 @@ Only the **download** of the final signed PDF is gated, on two conditions:
 
 ### Free (default on signup)
 - 5 signature credits granted at registration.
-- Can buy packages: **50 credits for €2.90**, one-time purchase, credits do not expire.
+- Can buy packages: **50 credits for €2.99**, one-time purchase, credits do not expire.
 - 1 credit is debited per successful document download.
 
 ### Business

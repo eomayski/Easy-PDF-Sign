@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import type { RootState } from '../../store';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -9,6 +10,7 @@ import { setMethod, setStatus, setError } from './signingSlice';
 import { usePrepareSignMutation, useCompleteSignMutation } from '../../store/api';
 import { viewportToPdfRect } from '../../lib/coords';
 import { detectOS, getHelperDownloads, isOlderVersion, LATEST_HELPER_VERSION } from '../../lib/detectOS';
+import { dateLocale } from '../../i18n';
 import type { SigningMethod, SignaturePlacement, VisualSignatureConfig } from '../../types';
 import type { CertInfo } from './types';
 
@@ -22,6 +24,7 @@ interface Props {
 }
 
 export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) {
+  const { t } = useTranslation();
   const dispatch = useDispatch();
   const { jobId } = useSelector((s: RootState) => s.upload);
   const { status } = useSelector((s: RootState) => s.signing);
@@ -97,7 +100,7 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
     setAgentError(null);
     const certList = await fetchCertsFromAgent();
     if (certList.length === 0) {
-      throw new Error('Няма намерени сертификати. Уверете се, че смарт картата е поставена.');
+      throw new Error(t('signing.noCerts'));
     }
     setCerts(certList);
     setSelectedCertId(certList[0].id);
@@ -144,7 +147,7 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
       dispatch(setStatus('done'));
       onDone();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Грешка при подписването.';
+      const msg = err instanceof Error ? err.message : t('signing.signError');
       setAgentError(msg);
       dispatch(setError(msg));
     }
@@ -173,7 +176,7 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
         await runPhysicalFlow();
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Грешка при подписването.';
+      const msg = err instanceof Error ? err.message : t('signing.signError');
       dispatch(setError(msg));
     }
   };
@@ -185,7 +188,7 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
       <div className="w-full max-w-lg">
         <Card className="mb-4">
           <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Метод на подписване
+            {t('signing.methodTitle')}
           </h3>
 
           <div className="space-y-3">
@@ -193,27 +196,27 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
               value="physical"
               current={selectedMethod}
               onChange={setSelectedMethod}
-              title="Физически КЕП (смарт карта)"
-              description="Изисква инсталиран helper agent и смарт карта. Квалифициран PAdES подпис."
-              badge="КЕП"
+              title={t('signing.physicalTitle')}
+              description={t('signing.physicalDesc')}
+              badge={t('signing.physicalBadge')}
               badgeColor="bg-brand-100 text-brand-700"
             />
             <MethodCard
               value="mock"
               current={selectedMethod}
               onChange={setSelectedMethod}
-              title="Демо подпис (без КЕП)"
-              description="Добавя визуален слой без криптографски подпис. Само за тест."
-              badge="Демо"
+              title={t('signing.mockTitle')}
+              description={t('signing.mockDesc')}
+              badge={t('signing.mockBadge')}
               badgeColor="bg-amber-100 text-amber-700"
             />
             <MethodCard
               value="cloud"
               current={selectedMethod}
               onChange={setSelectedMethod}
-              title="Облачен КЕП (Evrotrust / B-Trust)"
-              description="Подписвате от мобилното приложение на доставчика. Квалифициран PAdES подпис."
-              badge="Скоро"
+              title={t('signing.cloudTitle')}
+              description={t('signing.cloudDesc')}
+              badge={t('signing.cloudBadge')}
               badgeColor="bg-slate-100 text-slate-500"
               disabled
             />
@@ -222,61 +225,55 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
 
         {status === 'error' && (
           <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-            {agentError ?? 'Грешка при подписването. Опитайте отново.'}
+            {agentError ?? t('signing.errorGeneric')}
           </div>
         )}
 
         {isBusy && (
           <div className="mb-4 flex items-center gap-3 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-700">
             <Spinner size="sm" />
-            {status === 'preparing' && 'Подготвяне на документа...'}
-            {status === 'awaiting-agent' && 'Комуникация с helper agent...'}
-            {status === 'completing' && 'Финализиране на подписа...'}
+            {status === 'preparing' && t('signing.statusPreparing')}
+            {status === 'awaiting-agent' && t('signing.statusAgent')}
+            {status === 'completing' && t('signing.statusCompleting')}
           </div>
         )}
 
         {selectedMethod === 'physical' && agentStatus === 'unavailable' && (
           <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm">
-            <p className="font-semibold text-amber-800 mb-1">
-              Easy PDF Sign Helper не е открит
-            </p>
-            <p className="text-amber-700 mb-3">
-              За подписване със смарт карта е необходимо да инсталирате локалния помощен агент.
-              Инсталирайте го веднъж — след това ще работи автоматично.
-            </p>
+            <p className="font-semibold text-amber-800 mb-1">{t('signing.helperNotFound')}</p>
+            <p className="text-amber-700 mb-3">{t('signing.helperInstallHint')}</p>
             <HelperDownloadLinks />
             <button
               onClick={checkAgent}
               className="ml-3 text-amber-700 underline hover:text-amber-900"
             >
-              Провери отново
+              {t('signing.checkAgain')}
             </button>
           </div>
         )}
 
         {selectedMethod === 'physical' && agentOutdated && (
           <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm">
-            <p className="font-semibold text-amber-800 mb-1">
-              Налична е нова версия на Easy PDF Sign Helper
-            </p>
+            <p className="font-semibold text-amber-800 mb-1">{t('signing.helperUpdateTitle')}</p>
             <p className="text-amber-700 mb-3">
-              Използвате версия {agentVersion}, а най-новата е {LATEST_HELPER_VERSION}. Можете
-              да подпишете и сега, но препоръчваме да обновите — новите версии съдържат
-              поправки и подобрения.
+              {t('signing.helperUpdateHint', {
+                current: agentVersion,
+                latest: LATEST_HELPER_VERSION,
+              })}
             </p>
             <HelperDownloadLinks />
             <button
               onClick={checkAgent}
               className="ml-3 text-amber-700 underline hover:text-amber-900"
             >
-              Провери отново
+              {t('signing.checkAgain')}
             </button>
           </div>
         )}
 
         <div className="flex justify-between">
           <Button variant="secondary" onClick={onBack} disabled={isBusy}>
-            ← Назад
+            {t('common.back')}
           </Button>
           <Button
             variant="primary"
@@ -284,7 +281,7 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
             loading={isBusy}
             disabled={isBusy || (selectedMethod === 'physical' && agentStatus !== 'available')}
           >
-            Подпиши документа
+            {t('signing.signButton')}
           </Button>
         </div>
       </div>
@@ -294,14 +291,12 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
         open={showCertPicker}
         onClose={() => {
           setShowCertPicker(false);
-          dispatch(setError('Подписването е отменено.'));
+          dispatch(setError(t('signing.cancelled')));
         }}
-        title="Изберете сертификат"
+        title={t('signing.certPickerTitle')}
       >
         <div className="space-y-3">
-          <p className="text-sm text-slate-500">
-            Намерени сертификати на смарт картата:
-          </p>
+          <p className="text-sm text-slate-500">{t('signing.certsFound')}</p>
 
           {certs.map((cert) => (
             <button
@@ -316,14 +311,16 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
             >
               <div className="font-medium text-slate-900 text-sm">{cert.subject}</div>
               <div className="text-xs text-slate-500 mt-1">
-                Издател: {cert.issuer}
+                {t('signing.issuer', { issuer: cert.issuer })}
               </div>
               <div className="text-xs text-slate-400 mt-0.5">
-                Валиден до: {new Date(cert.validTo).toLocaleDateString('bg-BG')}
+                {t('signing.validTo', {
+                  date: new Date(cert.validTo).toLocaleDateString(dateLocale()),
+                })}
               </div>
               {cert.keyUsage.includes('nonRepudiation') && (
                 <span className="mt-1 inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
-                  КЕП (nonRepudiation)
+                  {t('signing.qesBadge')}
                 </span>
               )}
             </button>
@@ -334,17 +331,17 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
               variant="secondary"
               onClick={() => {
                 setShowCertPicker(false);
-                dispatch(setError('Подписването е отменено.'));
+                dispatch(setError(t('signing.cancelled')));
               }}
             >
-              Отказ
+              {t('common.cancel')}
             </Button>
             <Button
               variant="primary"
               onClick={onConfirmCert}
               disabled={!selectedCertId}
             >
-              Подпиши с избрания сертификат
+              {t('signing.signWithCert')}
             </Button>
           </div>
         </div>
@@ -356,6 +353,7 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
 // ─── HelperDownloadLinks ──────────────────────────────────────────────────────
 
 function HelperDownloadLinks() {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-wrap gap-2">
       {getHelperDownloads(detectOS()).map((dl) => (
@@ -364,7 +362,7 @@ function HelperDownloadLinks() {
           href={dl.url}
           className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
         >
-          ↓ {dl.label}
+          ↓ {t(dl.labelKey)}
         </a>
       ))}
     </div>

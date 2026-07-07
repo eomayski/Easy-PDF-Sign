@@ -134,7 +134,7 @@ Also provisions the local user row (with the 5-credit signup bonus) on first cal
 **Response `200`:** `{ "credits": 5, "accountType": "free" | "business" }`.
 
 ### POST /credits/purchase  _(auth required — **501 stub**)_
-Will buy a package (50 credits for €2.90, one-time, non-expiring) via `PaymentProvider`
+Will buy a package (50 credits for €2.99, one-time, non-expiring) via `PaymentProvider`
 (Stripe) in the payments milestone. Currently returns `501`.
 
 ### POST /billing/subscribe  _(planned — payments milestone)_

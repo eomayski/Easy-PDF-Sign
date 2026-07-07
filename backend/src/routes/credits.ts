@@ -16,7 +16,7 @@ router.get('/balance', requireAuth, async (req, res, next) => {
 
 /**
  * POST /api/credits/purchase
- * Package purchase (50 credits / €2.90) — arrives with the PaymentProvider
+ * Package purchase (50 credits / €2.99) — arrives with the PaymentProvider
  * (Stripe) integration in the next milestone. See services/billing/.
  */
 router.post('/purchase', requireAuth, (_req, res) => {

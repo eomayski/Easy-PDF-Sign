@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { HandwrittenSignatureModal } from './HandwrittenSignatureModal';
@@ -10,14 +11,15 @@ interface Props {
   onBack: () => void;
 }
 
-const layouts: { value: SignatureLayout; label: string }[] = [
-  { value: 'text-left-image-right', label: 'Текст вляво, изображение вдясно' },
-  { value: 'text-only', label: 'Само текст' },
-  { value: 'image-only', label: 'Само изображение' },
-  { value: 'text-above-image', label: 'Текст над изображение' },
+const layouts: { value: SignatureLayout; labelKey: string }[] = [
+  { value: 'text-left-image-right', labelKey: 'config.layoutTextLeftImageRight' },
+  { value: 'text-only', labelKey: 'config.layoutTextOnly' },
+  { value: 'image-only', labelKey: 'config.layoutImageOnly' },
+  { value: 'text-above-image', labelKey: 'config.layoutTextAboveImage' },
 ];
 
 export function SignConfigStep({ onNext, onBack }: Props) {
+  const { t } = useTranslation();
   const [showName, setShowName] = useState(true);
   const [showDate, setShowDate] = useState(true);
   const [freeText, setFreeText] = useState('');
@@ -46,7 +48,7 @@ export function SignConfigStep({ onNext, onBack }: Props) {
         {/* Text fields */}
         <Card>
           <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Текстово съдържание
+            {t('config.textSection')}
           </h3>
 
           <label className="mb-3 flex cursor-pointer items-center gap-3">
@@ -56,9 +58,7 @@ export function SignConfigStep({ onNext, onBack }: Props) {
               onChange={(e) => setShowName(e.target.checked)}
               className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
             />
-            <span className="text-sm text-slate-700">
-              Показвай имената от сертификата (CN)
-            </span>
+            <span className="text-sm text-slate-700">{t('config.showName')}</span>
           </label>
 
           <label className="mb-4 flex cursor-pointer items-center gap-3">
@@ -68,16 +68,16 @@ export function SignConfigStep({ onNext, onBack }: Props) {
               onChange={(e) => setShowDate(e.target.checked)}
               className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
             />
-            <span className="text-sm text-slate-700">Показвай датата на подписване</span>
+            <span className="text-sm text-slate-700">{t('config.showDate')}</span>
           </label>
 
           <label className="block text-sm font-medium text-slate-700">
-            Свободен текст
+            {t('config.freeText')}
             <textarea
               value={freeText}
               onChange={(e) => setFreeText(e.target.value)}
               rows={2}
-              placeholder="напр. Вярно с оригинала"
+              placeholder={t('config.freeTextPlaceholder')}
               className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
           </label>
@@ -86,7 +86,7 @@ export function SignConfigStep({ onNext, onBack }: Props) {
         {/* Image / handwritten */}
         <Card>
           <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Изображение / Подпис
+            {t('config.imageSection')}
           </h3>
 
           <div className="flex flex-wrap gap-2">
@@ -101,7 +101,7 @@ export function SignConfigStep({ onNext, onBack }: Props) {
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                Качи печат / лого
+                {t('config.uploadStamp')}
               </span>
             </label>
 
@@ -115,7 +115,7 @@ export function SignConfigStep({ onNext, onBack }: Props) {
                 </svg>
               }
             >
-              Нарисувай подпис
+              {t('config.drawSignature')}
             </Button>
 
             {activeImage && (
@@ -127,7 +127,7 @@ export function SignConfigStep({ onNext, onBack }: Props) {
                   setHandwrittenDataUrl(null);
                 }}
               >
-                Премахни изображение
+                {t('config.removeImage')}
               </Button>
             )}
           </div>
@@ -136,7 +136,7 @@ export function SignConfigStep({ onNext, onBack }: Props) {
             <div className="mt-3 inline-block rounded-lg border border-slate-200 bg-slate-50 p-2">
               <img
                 src={activeImage}
-                alt="Преглед"
+                alt={t('config.previewAlt')}
                 className="max-h-20 max-w-full object-contain"
               />
             </div>
@@ -146,7 +146,7 @@ export function SignConfigStep({ onNext, onBack }: Props) {
         {/* Layout */}
         <Card>
           <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Оформление
+            {t('config.layoutSection')}
           </h3>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {layouts.map((l) => (
@@ -160,7 +160,7 @@ export function SignConfigStep({ onNext, onBack }: Props) {
                     : 'border-slate-200 text-slate-600 hover:border-brand-300 hover:bg-brand-50/40',
                 ].join(' ')}
               >
-                {l.label}
+                {t(l.labelKey)}
               </button>
             ))}
           </div>
@@ -169,10 +169,10 @@ export function SignConfigStep({ onNext, onBack }: Props) {
 
       <div className="flex w-full max-w-2xl justify-between">
         <Button variant="secondary" onClick={onBack}>
-          ← Назад
+          {t('common.back')}
         </Button>
         <Button variant="primary" onClick={handleNext}>
-          Продължи към подписване →
+          {t('config.continueButton')}
         </Button>
       </div>
 

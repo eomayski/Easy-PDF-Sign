@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 interface Step {
   label: string;
 }
@@ -8,8 +10,9 @@ interface StepperProps {
 }
 
 export function Stepper({ steps, current }: StepperProps) {
+  const { t } = useTranslation();
   return (
-    <nav aria-label="Стъпки" className="flex items-center justify-center gap-0">
+    <nav aria-label={t('steps.aria')} className="flex items-center justify-center gap-0">
       {steps.map((step, idx) => {
         const done = idx < current;
         const active = idx === current;

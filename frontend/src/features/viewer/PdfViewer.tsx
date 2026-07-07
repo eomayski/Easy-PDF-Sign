@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
+import { useTranslation } from 'react-i18next';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 import { Spinner } from '../../components/ui/Spinner';
 
@@ -29,6 +30,7 @@ interface Props {
 const RENDER_SCALE = 1.5;
 
 export function PdfViewer({ jobId, currentPage, onPageCount, onPageDimensions, overlay }: Props) {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
@@ -89,7 +91,7 @@ export function PdfViewer({ jobId, currentPage, onPageCount, onPageDimensions, o
         await renderPage(pdf, currentPage);
         setLoading(false);
       } catch {
-        if (!cancelled) setError('Грешка при зареждане на PDF документа.');
+        if (!cancelled) setError('viewer.loadError');
       }
     })();
 
@@ -113,7 +115,7 @@ export function PdfViewer({ jobId, currentPage, onPageCount, onPageDimensions, o
         </div>
       )}
       {error && (
-        <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
+        <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{t(error)}</div>
       )}
       <canvas
         ref={canvasRef}

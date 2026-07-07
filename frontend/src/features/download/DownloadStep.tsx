@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { Trans, useTranslation } from 'react-i18next';
 import type { RootState } from '../../store';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export function DownloadStep({ jobId, onReset, onRequireLogin }: Props) {
+  const { t } = useTranslation();
   const dispatch = useDispatch();
   const { fileName } = useSelector((s: RootState) => s.upload);
   const { user, syncing } = useSelector((s: RootState) => s.auth);
@@ -73,7 +75,7 @@ export function DownloadStep({ jobId, onReset, onRequireLogin }: Props) {
       } else if (status === 402) {
         setShowUpsell(true);
       } else {
-        setError('Грешка при заявката за изтегляне. Опитайте отново.');
+        setError(t('download.requestError'));
       }
     }
   };
@@ -93,11 +95,8 @@ export function DownloadStep({ jobId, onReset, onRequireLogin }: Props) {
             </svg>
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Документът е подписан!</h2>
-            <p className="text-sm text-slate-500">
-              Прегледайте резултата и изтеглете файла. Той ще бъде изтрит от сървъра след
-              изтегляне.
-            </p>
+            <h2 className="text-lg font-semibold text-slate-900">{t('download.title')}</h2>
+            <p className="text-sm text-slate-500">{t('download.subtitle')}</p>
           </div>
         </div>
 
@@ -106,15 +105,13 @@ export function DownloadStep({ jobId, onReset, onRequireLogin }: Props) {
 
         {!user && !downloadToken && !syncing && (
           <p className="mb-3 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-700">
-            За да изтеглите подписания документ, е необходимо да влезете в акаунта си. Новите
-            акаунти получават <strong>5 безплатни кредита</strong>.
+            <Trans i18nKey="download.loginPrompt" components={{ b: <strong /> }} />
           </p>
         )}
 
         {downloadToken && (
           <p className="mb-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            Документът е изтеглен. Ако нещо се е объркало с файла, можете да го изтеглите
-            отново безплатно, докато не затворите страницата (до 1 час след качването).
+            {t('download.downloaded')}
           </p>
         )}
 
@@ -129,12 +126,12 @@ export function DownloadStep({ jobId, onReset, onRequireLogin }: Props) {
           loading={isLoading || syncing}
         >
           {downloadToken
-            ? 'Изтегли отново (безплатно)'
+            ? t('download.btnAgain')
             : syncing
-              ? 'Влизане...'
+              ? t('download.btnLoggingIn')
               : user
-                ? 'Изтегли подписания PDF (1 кредит)'
-                : 'Влез и изтегли'}
+                ? t('download.btnDownload')
+                : t('download.btnLogin')}
         </Button>
 
         <Button
@@ -146,31 +143,26 @@ export function DownloadStep({ jobId, onReset, onRequireLogin }: Props) {
             onReset();
           }}
         >
-          Подпиши нов документ
+          {t('download.signAnother')}
         </Button>
       </Card>
 
       {/* Upsell — 0 credits (packages arrive with the payment milestone) */}
-      <Modal open={showUpsell} onClose={() => setShowUpsell(false)} title="Нямате налични кредити">
+      <Modal open={showUpsell} onClose={() => setShowUpsell(false)} title={t('download.upsellTitle')}>
         <div className="space-y-4">
-          <p className="text-sm text-slate-600">
-            Изчерпали сте безплатните си кредити за изтегляне. Скоро ще можете да закупите
-            пакет или да преминете на бизнес абонамент:
-          </p>
+          <p className="text-sm text-slate-600">{t('download.upsellText')}</p>
           <div className="rounded-xl border-2 border-brand-200 bg-brand-50 p-4">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-slate-900">50 кредита</span>
-              <span className="text-lg font-bold text-brand-700">€2.90</span>
+              <span className="font-semibold text-slate-900">{t('download.pack50')}</span>
+              <span className="text-lg font-bold text-brand-700">€2.99</span>
             </div>
-            <p className="mt-1 text-sm text-slate-500">
-              Еднократно плащане, кредитите не изтичат.
-            </p>
+            <p className="mt-1 text-sm text-slate-500">{t('download.packNote')}</p>
           </div>
           <Button variant="primary" className="w-full" disabled>
-            Купи пакет — очаквайте скоро
+            {t('download.buySoon')}
           </Button>
           <Button variant="ghost" size="sm" className="w-full" onClick={() => setShowUpsell(false)}>
-            Затвори
+            {t('common.close')}
           </Button>
         </div>
       </Modal>

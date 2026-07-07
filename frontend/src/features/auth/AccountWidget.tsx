@@ -1,4 +1,5 @@
 import { useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import type { RootState } from '../../store';
 import { Button } from '../../components/ui/Button';
 import { supabase } from '../../lib/supabase';
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export function AccountWidget({ onLoginClick }: Props) {
+  const { t } = useTranslation();
   const { user, sessionChecked } = useSelector((s: RootState) => s.auth);
 
   if (!sessionChecked) return null;
@@ -15,7 +17,7 @@ export function AccountWidget({ onLoginClick }: Props) {
   if (!user) {
     return (
       <Button variant="secondary" size="sm" onClick={onLoginClick}>
-        Вход
+        {t('auth.login')}
       </Button>
     );
   }
@@ -25,9 +27,11 @@ export function AccountWidget({ onLoginClick }: Props) {
       <span className="hidden text-sm text-slate-600 sm:block">{user.email}</span>
       <span
         className="rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-semibold text-brand-700"
-        title="Налични кредити за изтегляне"
+        title={t('account.creditsTitle')}
       >
-        {user.accountType === 'business' ? 'Business' : `Кредити: ${user.credits}`}
+        {user.accountType === 'business'
+          ? 'Business'
+          : t('account.credits', { count: user.credits })}
       </span>
       <Button
         variant="ghost"
@@ -36,7 +40,7 @@ export function AccountWidget({ onLoginClick }: Props) {
           void supabase?.auth.signOut();
         }}
       >
-        Изход
+        {t('account.logout')}
       </Button>
     </div>
   );

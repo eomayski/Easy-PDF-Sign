@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
@@ -11,6 +12,7 @@ interface Props {
 type Tab = 'login' | 'register';
 
 export function AuthModal({ open, onClose }: Props) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,11 +43,11 @@ export function AuthModal({ open, onClose }: Props) {
           // Email confirmation disabled — logged in straight away
           onClose();
         } else {
-          setInfo('Изпратихме ви имейл за потвърждение. Отворете връзката в него, за да активирате акаунта си.');
+          setInfo(t('auth.confirmSent'));
         }
       }
     } catch (err) {
-      setError(translateAuthError(err));
+      setError(t(authErrorKey(err)));
     } finally {
       setBusy(false);
     }
@@ -64,7 +66,7 @@ export function AuthModal({ open, onClose }: Props) {
       });
       if (err) throw err;
     } catch (err) {
-      setError(translateAuthError(err));
+      setError(t(authErrorKey(err)));
       setBusy(false);
     }
   };
@@ -73,35 +75,38 @@ export function AuthModal({ open, onClose }: Props) {
     if (!supabase) return;
     resetMessages();
     if (!email) {
-      setError('Въведете имейл адреса си, за да изпратим връзка за нова парола.');
+      setError(t('auth.enterEmailFirst'));
       return;
     }
     setBusy(true);
     try {
       const { error: err } = await supabase.auth.resetPasswordForEmail(email);
       if (err) throw err;
-      setInfo('Изпратихме ви имейл с връзка за смяна на паролата.');
+      setInfo(t('auth.resetSent'));
     } catch (err) {
-      setError(translateAuthError(err));
+      setError(t(authErrorKey(err)));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={tab === 'login' ? 'Вход' : 'Регистрация'} maxWidth="sm">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={tab === 'login' ? t('auth.login') : t('auth.register')}
+      maxWidth="sm"
+    >
       {!isSupabaseConfigured ? (
-        <p className="text-sm text-slate-500">
-          Входът не е конфигуриран (липсват VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).
-        </p>
+        <p className="text-sm text-slate-500">{t('auth.notConfigured')}</p>
       ) : (
         <div>
           {/* Tabs */}
           <div className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
             {(
               [
-                ['login', 'Вход'],
-                ['register', 'Регистрация'],
+                ['login', t('auth.login')],
+                ['register', t('auth.register')],
               ] as const
             ).map(([value, label]) => (
               <button
@@ -125,8 +130,7 @@ export function AuthModal({ open, onClose }: Props) {
 
           {tab === 'register' && (
             <p className="mb-4 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-700">
-              Новите акаунти получават <strong>5 безплатни кредита</strong> за изтегляне на
-              подписани документи.
+              <Trans i18nKey="auth.bonus" components={{ b: <strong /> }} />
             </p>
           )}
 
@@ -155,19 +159,19 @@ export function AuthModal({ open, onClose }: Props) {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
               />
             </svg>
-            Продължи с Google
+            {t('auth.google')}
           </button>
 
           <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-wide text-slate-400">
             <div className="h-px flex-1 bg-slate-200" />
-            или с имейл
+            {t('auth.orEmail')}
             <div className="h-px flex-1 bg-slate-200" />
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="auth-email" className="mb-1 block text-sm font-medium text-slate-700">
-                Имейл
+                {t('auth.email')}
               </label>
               <input
                 id="auth-email"
@@ -181,7 +185,7 @@ export function AuthModal({ open, onClose }: Props) {
             </div>
             <div>
               <label htmlFor="auth-password" className="mb-1 block text-sm font-medium text-slate-700">
-                Парола
+                {t('auth.password')}
               </label>
               <input
                 id="auth-password"
@@ -205,7 +209,7 @@ export function AuthModal({ open, onClose }: Props) {
             )}
 
             <Button type="submit" variant="primary" className="w-full" loading={busy}>
-              {tab === 'login' ? 'Влез' : 'Регистрирай се'}
+              {tab === 'login' ? t('auth.submitLogin') : t('auth.submitRegister')}
             </Button>
           </form>
 
@@ -216,7 +220,7 @@ export function AuthModal({ open, onClose }: Props) {
               disabled={busy}
               className="mt-3 text-sm text-slate-500 underline hover:text-slate-700"
             >
-              Забравена парола?
+              {t('auth.forgotten')}
             </button>
           )}
         </div>
@@ -225,14 +229,13 @@ export function AuthModal({ open, onClose }: Props) {
   );
 }
 
-function translateAuthError(err: unknown): string {
+/** Мапва Supabase грешка към i18n ключ (auth.err*). */
+function authErrorKey(err: unknown): string {
   const msg = err instanceof Error ? err.message : '';
-  if (msg.includes('Invalid login credentials')) return 'Грешен имейл или парола.';
-  if (msg.includes('already registered')) return 'Този имейл вече е регистриран.';
-  if (msg.includes('Password should be')) return 'Паролата трябва да е поне 6 символа.';
-  if (msg.includes('Email not confirmed'))
-    return 'Имейлът не е потвърден — проверете пощата си за връзката за потвърждение.';
-  if (msg.includes('rate limit') || msg.includes('Too many'))
-    return 'Твърде много опити — изчакайте малко и опитайте отново.';
-  return msg || 'Възникна грешка. Опитайте отново.';
+  if (msg.includes('Invalid login credentials')) return 'auth.errInvalidCredentials';
+  if (msg.includes('already registered')) return 'auth.errAlreadyRegistered';
+  if (msg.includes('Password should be')) return 'auth.errPasswordShort';
+  if (msg.includes('Email not confirmed')) return 'auth.errEmailNotConfirmed';
+  if (msg.includes('rate limit') || msg.includes('Too many')) return 'auth.errRateLimit';
+  return 'auth.errGeneric';
 }

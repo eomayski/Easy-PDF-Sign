@@ -79,7 +79,7 @@ Browser                       Backend
   │                                           (no auth required to preview)
   │
   │   ── not logged in? ─────────────────────► show login/register prompt
-  │   ── logged in, 0 credits? ───────────────► show "buy 50 credits / €2.90"
+  │   ── logged in, 0 credits? ───────────────► show "buy 50 credits / €2.99"
   │                                              or "upgrade to business" prompt
   │   ── logged in, ≥1 credit or business? ──┐
   │                                          ▼

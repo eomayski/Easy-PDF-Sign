@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { setUploadResult } from './uploadSlice';
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function UploadStep({ onNext }: Props) {
+  const { t } = useTranslation();
   const dispatch = useDispatch();
   const [uploadPdf, { isLoading, error }] = useUploadPdfMutation();
   const [dragOver, setDragOver] = useState(false);
@@ -51,10 +53,8 @@ export function UploadStep({ onNext }: Props) {
   return (
     <div className="flex flex-col items-center justify-center py-12">
       <Card className="w-full max-w-lg text-center">
-        <h2 className="mb-2 text-xl font-semibold text-slate-900">Качете PDF документ</h2>
-        <p className="mb-6 text-sm text-slate-500">
-          Изберете файл или го плъзнете тук. Файлът ще бъде изтрит след изтегляне.
-        </p>
+        <h2 className="mb-2 text-xl font-semibold text-slate-900">{t('upload.title')}</h2>
+        <p className="mb-6 text-sm text-slate-500">{t('upload.subtitle')}</p>
 
         <div
           onDragOver={(e) => {
@@ -86,10 +86,12 @@ export function UploadStep({ onNext }: Props) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M28 8v12h12" />
           </svg>
           <p className="text-sm font-medium text-slate-600">
-            Плъзнете PDF тук или{' '}
-            <span className="text-brand-600 underline underline-offset-2">изберете файл</span>
+            {t('upload.dragHint')}{' '}
+            <span className="text-brand-600 underline underline-offset-2">
+              {t('upload.chooseFileLink')}
+            </span>
           </p>
-          <p className="mt-1 text-xs text-slate-400">Само PDF файлове</p>
+          <p className="mt-1 text-xs text-slate-400">{t('upload.onlyPdf')}</p>
           <input
             ref={inputRef}
             type="file"
@@ -101,7 +103,7 @@ export function UploadStep({ onNext }: Props) {
 
         {error && (
           <p className="mt-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">
-            Грешка при качването. Моля, опитайте отново.
+            {t('upload.error')}
           </p>
         )}
 
@@ -112,7 +114,7 @@ export function UploadStep({ onNext }: Props) {
           loading={isLoading}
           onClick={() => inputRef.current?.click()}
         >
-          Изберете PDF файл
+          {t('upload.chooseButton')}
         </Button>
       </Card>
     </div>

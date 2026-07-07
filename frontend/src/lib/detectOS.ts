@@ -36,7 +36,8 @@ export function isOlderVersion(a: string, b: string): boolean {
 }
 
 export interface HelperDownload {
-  label: string;
+  /** i18n key (helper.*) — компонентът го превежда с t() */
+  labelKey: string;
   url: string;
 }
 
@@ -45,13 +46,13 @@ const RELEASES_BASE = 'https://github.com/eomayski/Easy-PDF-Sign/releases/latest
 export function getHelperDownload(os: DetectedOS): HelperDownload {
   switch (os) {
     case 'windows':
-      return { label: 'Изтегли за Windows (.exe)', url: `${RELEASES_BASE}/easy-pdf-sign-helper-setup.exe` };
+      return { labelKey: 'helper.dlWindows', url: `${RELEASES_BASE}/easy-pdf-sign-helper-setup.exe` };
     case 'macos':
-      return { label: 'Изтегли за macOS', url: `${RELEASES_BASE}/easy-pdf-sign-helper-macos` };
+      return { labelKey: 'helper.dlMac', url: `${RELEASES_BASE}/easy-pdf-sign-helper-macos` };
     case 'linux':
-      return { label: 'Изтегли за Linux (.deb)', url: `${RELEASES_BASE}/easy-pdf-sign-helper.deb` };
+      return { labelKey: 'helper.dlDeb', url: `${RELEASES_BASE}/easy-pdf-sign-helper.deb` };
     default:
-      return { label: 'Изтегли Easy PDF Sign Helper', url: 'https://github.com/eomayski/Easy-PDF-Sign/releases/latest' };
+      return { labelKey: 'helper.dlGeneric', url: 'https://github.com/eomayski/Easy-PDF-Sign/releases/latest' };
   }
 }
 
@@ -59,8 +60,8 @@ export function getHelperDownload(os: DetectedOS): HelperDownload {
 export function getHelperDownloads(os: DetectedOS): HelperDownload[] {
   if (os === 'linux') {
     return [
-      { label: 'Изтегли за Fedora/RHEL (.rpm)', url: `${RELEASES_BASE}/easy-pdf-sign-helper.rpm` },
-      { label: 'Изтегли за Debian/Ubuntu (.deb)', url: `${RELEASES_BASE}/easy-pdf-sign-helper.deb` },
+      { labelKey: 'helper.dlRpm', url: `${RELEASES_BASE}/easy-pdf-sign-helper.rpm` },
+      { labelKey: 'helper.dlDeb', url: `${RELEASES_BASE}/easy-pdf-sign-helper.deb` },
     ];
   }
   return [getHelperDownload(os)];

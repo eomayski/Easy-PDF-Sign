@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import { Stepper } from './components/ui/Stepper';
+import { LanguageSwitcher } from './components/ui/LanguageSwitcher';
 import { UploadStep } from './features/upload/UploadStep';
 import { ViewerStep } from './features/viewer/ViewerStep';
 import { SignConfigStep } from './features/sign-config/SignConfigStep';
@@ -15,15 +17,11 @@ import { clearFlow, loadFlow, saveFlow } from './lib/flowPersistence';
 import type { RootState } from './store';
 import type { SignaturePlacement, VisualSignatureConfig } from './types';
 
-const STEPS = [
-  { label: 'Качване' },
-  { label: 'Позиция' },
-  { label: 'Изглед' },
-  { label: 'Подписване' },
-];
+const STEP_KEYS = ['steps.upload', 'steps.position', 'steps.appearance', 'steps.signing'];
 
 export function App() {
   useSupabaseSession();
+  const { t } = useTranslation();
   const dispatch = useDispatch();
   const upload = useSelector((s: RootState) => s.upload);
   const { jobId } = upload;
@@ -88,8 +86,9 @@ export function App() {
           </div>
           <div className="flex items-center gap-4">
             <span className="hidden text-xs text-slate-400 lg:block">
-              Квалифициран електронен подпис (PAdES / eIDAS)
+              {t('header.tagline')}
             </span>
+            <LanguageSwitcher />
             <AccountWidget onLoginClick={() => setAuthModalOpen(true)} />
           </div>
         </div>
@@ -99,7 +98,7 @@ export function App() {
         {/* Stepper (hidden on download step) */}
         {step < 4 && (
           <div className="mb-8">
-            <Stepper steps={STEPS} current={step} />
+            <Stepper steps={STEP_KEYS.map((k) => ({ label: t(k) }))} current={step} />
           </div>
         )}
 

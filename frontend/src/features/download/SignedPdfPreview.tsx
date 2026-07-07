@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
+import { useTranslation } from 'react-i18next';
 import { Spinner } from '../../components/ui/Spinner';
 
 // Same worker setup as PdfViewer — assigning twice is harmless
@@ -20,6 +21,7 @@ interface Props {
  * browser <object>/<embed> PDF plugins are unreliable, especially on Linux.
  */
 export function SignedPdfPreview({ jobId }: Props) {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
   const [numPages, setNumPages] = useState(0);
@@ -42,7 +44,7 @@ export function SignedPdfPreview({ jobId }: Props) {
         setLoading(false);
       } catch {
         if (!cancelled) {
-          setError('Грешка при зареждане на прегледа.');
+          setError('download.previewError');
           setLoading(false);
         }
       }
@@ -79,7 +81,7 @@ export function SignedPdfPreview({ jobId }: Props) {
 
   if (error) {
     return (
-      <div className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">{error}</div>
+      <div className="mb-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-700">{t(error)}</div>
     );
   }
 
@@ -101,19 +103,17 @@ export function SignedPdfPreview({ jobId }: Props) {
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
                 className="rounded-lg px-2 py-1 hover:bg-slate-200 disabled:opacity-40"
-                aria-label="Предишна страница"
+                aria-label={t('download.prevPage')}
               >
                 ‹
               </button>
-              <span>
-                Стр. {page} / {numPages}
-              </span>
+              <span>{t('download.pageShort', { current: page, total: numPages })}</span>
               <button
                 type="button"
                 onClick={() => setPage((p) => Math.min(numPages, p + 1))}
                 disabled={page >= numPages}
                 className="rounded-lg px-2 py-1 hover:bg-slate-200 disabled:opacity-40"
-                aria-label="Следваща страница"
+                aria-label={t('download.nextPage')}
               >
                 ›
               </button>

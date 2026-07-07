@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import SignaturePad from 'signature_pad';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export function HandwrittenSignatureModal({ open, onClose, onSave }: Props) {
+  const { t } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const padRef = useRef<SignaturePad | null>(null);
 
@@ -36,10 +38,8 @@ export function HandwrittenSignatureModal({ open, onClose, onSave }: Props) {
   const handleClear = () => padRef.current?.clear();
 
   return (
-    <Modal open={open} onClose={onClose} title="Нарисувайте подписа си" maxWidth="lg">
-      <p className="mb-4 text-sm text-slate-500">
-        Използвайте мишката или пръст (на тъч екран), за да нарисувате подписа си.
-      </p>
+    <Modal open={open} onClose={onClose} title={t('handwritten.title')} maxWidth="lg">
+      <p className="mb-4 text-sm text-slate-500">{t('handwritten.hint')}</p>
       <canvas
         ref={canvasRef}
         width={480}
@@ -49,13 +49,13 @@ export function HandwrittenSignatureModal({ open, onClose, onSave }: Props) {
       />
       <div className="mt-4 flex justify-end gap-2">
         <Button variant="ghost" onClick={handleClear}>
-          Изчисти
+          {t('handwritten.clear')}
         </Button>
         <Button variant="secondary" onClick={onClose}>
-          Отказ
+          {t('common.cancel')}
         </Button>
         <Button variant="primary" onClick={handleSave}>
-          Запази подписа
+          {t('handwritten.save')}
         </Button>
       </div>
     </Modal>

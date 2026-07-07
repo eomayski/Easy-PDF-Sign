@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useSelector } from 'react-redux';
+import { useTranslation } from 'react-i18next';
 import type { RootState } from '../../store';
 import { PdfViewer, type PageDimensions } from './PdfViewer';
 import { SignatureBox } from '../signature-box/SignatureBox';
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export function ViewerStep({ onNext, onBack }: Props) {
+  const { t } = useTranslation();
   const { jobId, numPages } = useSelector((s: RootState) => s.upload);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageCount, setPageCount] = useState(0);
@@ -29,11 +31,7 @@ export function ViewerStep({ onNext, onBack }: Props) {
 
   const handleNext = () => {
     if (!canContinue || !dims) {
-      setWarning(
-        rect
-          ? 'Зоната за подпис е твърде малка — уголемете правоъгълника.'
-          : 'Не е избрана позиция за подписа. Начертайте правоъгълник върху страницата, като натиснете и влачите.',
-      );
+      setWarning(t(rect ? 'viewer.warnTooSmall' : 'viewer.warnNoZone'));
       return;
     }
     onNext({
@@ -51,14 +49,14 @@ export function ViewerStep({ onNext, onBack }: Props) {
     <div className="flex flex-col items-center gap-6">
       <div className="w-full max-w-3xl">
         <div className="mb-4 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-700">
-          <strong>Начертайте зона</strong> за подписа: натиснете и влачете правоъгълник върху страницата.
-          Можете да го преместите и преоразмерите след нанасянето.
+          <strong>{t('viewer.drawHintStrong')}</strong>
+          {t('viewer.drawHintRest')}
         </div>
 
         {/* Page navigation */}
         <div className="mb-3 flex items-center justify-between">
           <span className="text-sm text-slate-500">
-            Страница {currentPage} от {pageCount || numPages}
+            {t('viewer.pageOf', { current: currentPage, total: pageCount || numPages })}
           </span>
           <div className="flex gap-2">
             <Button
@@ -67,7 +65,7 @@ export function ViewerStep({ onNext, onBack }: Props) {
               disabled={currentPage <= 1}
               onClick={() => setCurrentPage((p) => p - 1)}
             >
-              ← Предишна
+              {t('viewer.prev')}
             </Button>
             <Button
               variant="secondary"
@@ -75,7 +73,7 @@ export function ViewerStep({ onNext, onBack }: Props) {
               disabled={currentPage >= (pageCount || numPages)}
               onClick={() => setCurrentPage((p) => p + 1)}
             >
-              Следваща →
+              {t('viewer.next')}
             </Button>
           </div>
         </div>
@@ -104,9 +102,7 @@ export function ViewerStep({ onNext, onBack }: Props) {
         </div>
 
         {canContinue && (
-          <p className="mt-2 text-center text-xs text-emerald-600">
-            ✓ Зоната за подпис е избрана. Можете да продължите.
-          </p>
+          <p className="mt-2 text-center text-xs text-emerald-600">{t('viewer.zoneSelected')}</p>
         )}
 
         {warning && !canContinue && (
@@ -118,10 +114,10 @@ export function ViewerStep({ onNext, onBack }: Props) {
 
       <div className="flex w-full max-w-3xl justify-between">
         <Button variant="secondary" onClick={onBack}>
-          ← Назад
+          {t('common.back')}
         </Button>
         <Button variant="primary" onClick={handleNext}>
-          Конфигурирай изглед →
+          {t('viewer.continueButton')}
         </Button>
       </div>
     </div>
