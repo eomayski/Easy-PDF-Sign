@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { Stepper } from './components/ui/Stepper';
 import { LanguageSwitcher } from './components/ui/LanguageSwitcher';
+import { LandingPage } from './features/landing/LandingPage';
 import { UploadStep } from './features/upload/UploadStep';
 import { ViewerStep } from './features/viewer/ViewerStep';
 import { SignConfigStep } from './features/sign-config/SignConfigStep';
@@ -28,6 +29,8 @@ export function App() {
 
   // Restore the flow after a full page reload (e.g. the Google OAuth redirect)
   const [restored] = useState(() => loadFlow());
+  // Landing е началният изглед; при възстановен flow влизаме директно в него.
+  const [view, setView] = useState<'landing' | 'flow'>(restored ? 'flow' : 'landing');
   const [step, setStep] = useState(restored?.step ?? 0);
   const [placement, setPlacement] = useState<SignaturePlacement | null>(
     restored?.placement ?? null,
@@ -95,14 +98,16 @@ export function App() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8">
+        {view === 'landing' && <LandingPage onStart={() => setView('flow')} />}
+
         {/* Stepper (hidden on download step) */}
-        {step < 4 && (
+        {view === 'flow' && step < 4 && (
           <div className="mb-8">
             <Stepper steps={STEP_KEYS.map((k) => ({ label: t(k) }))} current={step} />
           </div>
         )}
 
-        {step === 0 && <UploadStep onNext={() => setStep(1)} />}
+        {view === 'flow' && step === 0 && <UploadStep onNext={() => setStep(1)} />}
 
         {step === 1 && (
           <ViewerStep

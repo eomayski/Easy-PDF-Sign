@@ -9,9 +9,11 @@ npm run dev    # port 5173; /api proxied to backend:4000
 npm run build  # tsc + vite build → dist/
 ```
 
-## 4-step UX flow
+## UX flow
 
 ```
+Landing            → LandingPage (marketing page + pinned-scroll demo of the flow;
+                     shown initially unless a flow is being restored after OAuth/F5)
 Step 0: Upload     → UploadStep
 Step 1: Place      → ViewerStep (pdf.js + SignatureBox overlay)
 Step 2: Appearance → SignConfigStep
@@ -19,7 +21,11 @@ Step 3: Sign       → SigningStep
 Step 4: Download   → DownloadStep
 ```
 
-State for the current step lives in `App.tsx` (local useState). Cross-step data (`placement`, `visualConfig`, `downloadToken`) is passed as props. Redux handles server-derived state.
+The landing↔flow switch (`view`) and the current step live in `App.tsx` (local useState). Cross-step data (`placement`, `visualConfig`, `downloadToken`) is passed as props. Redux handles server-derived state.
+
+## i18n (BG/EN)
+
+`src/i18n/` — i18next with typed dictionaries (`bg.ts` is the schema source, `en.ts` is typed against it, so a missing key fails `tsc`). All UI strings go through `t('...')` — never hardcode user-facing text in components. `LanguageSwitcher` (header) persists the choice in localStorage (`eps-lang`); default follows the browser language. The visual signature content in PDFs stays English by design (`Digitally signed by: ...`).
 
 ## Redux store shape
 
@@ -36,6 +42,7 @@ store/
 
 | Directory | Key files | Responsibility |
 |-----------|-----------|----------------|
+| `landing/` | `LandingPage.tsx`, `landing.css` | Marketing landing: hero with animated ink stroke, pinned scroll section replaying the 5 steps as HTML mock-ups, pricing, CTA. Copy lives in the `landing.*` i18n keys |
 | `upload/` | `UploadStep.tsx`, `uploadSlice.ts` | Drag-drop or browse; POST to /api/upload |
 | `viewer/` | `PdfViewer.tsx`, `ViewerStep.tsx` | pdf.js rendering; page navigation |
 | `signature-box/` | `SignatureBox.tsx` | Konva canvas overlay; draw + resize + drag rectangle |

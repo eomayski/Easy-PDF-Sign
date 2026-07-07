@@ -1,0 +1,22 @@
+/* Анимация на "начертаването" на зоната за подпис в стъпка 2 от демото.
+   Класът се добавя/маха при смяна на активния панел, което я рестартира. */
+@keyframes landing-rect-in {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.landing-rect-in {
+  animation: landing-rect-in 0.6s 0.25s cubic-bezier(0.22, 0.8, 0.3, 1) backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-rect-in {
+    animation: none;
+  }
+}
