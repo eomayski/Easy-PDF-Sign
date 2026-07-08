@@ -45,11 +45,16 @@ export function LandingPage({ onStart }: Props) {
 function Hero({ onStart, onHow }: { onStart: () => void; onHow: () => void }) {
   const { t } = useTranslation();
   const inkRef = useRef<SVGPathElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   // Мастиленият щрих под акцентната дума се "изписва" при зареждане.
   useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      videoRef.current?.pause();
+      return;
+    }
     const path = inkRef.current;
-    if (!path || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!path) return;
     const len = path.getTotalLength();
     path.style.strokeDasharray = `${len}`;
     path.style.strokeDashoffset = `${len}`;
@@ -63,71 +68,93 @@ function Hero({ onStart, onHow }: { onStart: () => void; onHow: () => void }) {
   }, []);
 
   return (
-    <section className="pb-20 pt-12 sm:pt-16">
-      <span className="inline-flex items-center gap-2.5 font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-800">
-        <span className="h-px w-6 bg-brand-600" aria-hidden="true" />
-        {t('landing.eyebrow')}
-      </span>
+    <section className="relative left-1/2 -mt-8 w-screen -translate-x-1/2 overflow-hidden">
+      {/* Видео фон + градиенти за четимост на текста и преход към фона на страницата */}
+      <video
+        ref={videoRef}
+        className="absolute inset-0 h-full w-full object-cover"
+        src="/hero-bg.webm"
+        autoPlay
+        muted
+        loop
+        playsInline
+        aria-hidden="true"
+      />
+      <div
+        className="absolute inset-0 bg-gradient-to-r from-slate-50 via-slate-50/85 to-slate-50/25"
+        aria-hidden="true"
+      />
+      <div
+        className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-50"
+        aria-hidden="true"
+      />
 
-      <h1 className="mt-5 max-w-xl text-4xl font-extrabold leading-[1.1] tracking-tight text-slate-900 [text-wrap:balance] sm:text-5xl lg:text-6xl">
-        {t('landing.h1a')}
-        <span className="relative whitespace-nowrap">
-          {t('landing.h1b')}
-          <svg
-            className="pointer-events-none absolute -bottom-[0.3em] left-[-2%] h-[0.5em] w-[104%] overflow-visible"
-            viewBox="0 0 300 40"
-            aria-hidden="true"
-          >
-            <path
-              ref={inkRef}
-              d="M4,30 C40,8 70,34 110,22 C150,10 160,36 205,24 C245,14 265,30 296,18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3.2"
-              strokeLinecap="round"
-              className="text-brand-600 opacity-85"
-            />
-          </svg>
+      <div className="relative mx-auto max-w-5xl px-4 pb-20 pt-12 sm:pt-16">
+        <span className="inline-flex items-center gap-2.5 font-mono text-xs font-semibold uppercase tracking-[0.14em] text-brand-800">
+          <span className="h-px w-6 bg-brand-600" aria-hidden="true" />
+          {t('landing.eyebrow')}
         </span>
-      </h1>
 
-      <p className="mt-6 max-w-xl text-lg text-slate-500">{t('landing.lead')}</p>
-
-      <div className="mt-9 flex flex-wrap gap-3">
-        <Button variant="primary" size="lg" onClick={onStart}>
-          {t('landing.ctaSign')}
-        </Button>
-        <Button variant="secondary" size="lg" onClick={onHow}>
-          {t('landing.ctaHow')}
-        </Button>
-      </div>
-
-      <div className="mt-11 flex flex-wrap gap-x-7 gap-y-2.5 border-t border-slate-200 pt-5 text-sm text-slate-500">
-        {[
-          [
-            'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
-            t('landing.trust1'),
-          ],
-          [
-            'M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z',
-            t('landing.trust2'),
-          ],
-          ['M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', t('landing.trust3')],
-        ].map(([d, label]) => (
-          <span key={label} className="inline-flex items-center gap-2">
+        <h1 className="mt-5 max-w-xl text-4xl font-extrabold leading-[1.1] tracking-tight text-slate-900 [text-wrap:balance] sm:text-5xl lg:text-6xl">
+          {t('landing.h1a')}
+          <span className="relative whitespace-nowrap">
+            {t('landing.h1b')}
             <svg
-              className="h-4 w-4 shrink-0 text-brand-600"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
+              className="pointer-events-none absolute -bottom-[0.3em] left-[-2%] h-[0.5em] w-[104%] overflow-visible"
+              viewBox="0 0 300 40"
               aria-hidden="true"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d={d} />
+              <path
+                ref={inkRef}
+                d="M4,30 C40,8 70,34 110,22 C150,10 160,36 205,24 C245,14 265,30 296,18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3.2"
+                strokeLinecap="round"
+                className="text-brand-600 opacity-85"
+              />
             </svg>
-            {label}
           </span>
-        ))}
+        </h1>
+
+        <p className="mt-6 max-w-xl text-lg text-slate-500">{t('landing.lead')}</p>
+
+        <div className="mt-9 flex flex-wrap gap-3">
+          <Button variant="primary" size="lg" onClick={onStart}>
+            {t('landing.ctaSign')}
+          </Button>
+          <Button variant="secondary" size="lg" onClick={onHow}>
+            {t('landing.ctaHow')}
+          </Button>
+        </div>
+
+        <div className="mt-11 flex flex-wrap gap-x-7 gap-y-2.5 border-t border-slate-200 pt-5 text-sm text-slate-500">
+          {[
+            [
+              'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+              t('landing.trust1'),
+            ],
+            [
+              'M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z',
+              t('landing.trust2'),
+            ],
+            ['M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', t('landing.trust3')],
+          ].map(([d, label]) => (
+            <span key={label} className="inline-flex items-center gap-2">
+              <svg
+                className="h-4 w-4 shrink-0 text-brand-600"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d={d} />
+              </svg>
+              {label}
+            </span>
+          ))}
+        </div>
       </div>
     </section>
   );
