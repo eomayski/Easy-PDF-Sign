@@ -22,7 +22,10 @@ npm run build # tsc → dist/
 | GET | `/api/files/:jobId/signed` | `routes/files.ts` | Streams signed PDF inline for the download-page preview (no auth — preview is always visible) |
 | GET | `/api/auth/me` | `routes/auth.ts` | Current user + credits; provisions the user row (+5 signup bonus) on first call. Register/login live in Supabase, not here |
 | GET | `/api/credits/balance` | `routes/credits.ts` | Credit balance for the logged-in user |
-| POST | `/api/credits/purchase` | `routes/credits.ts` | **501 stub** until the Stripe/`PaymentProvider` milestone |
+| POST | `/api/credits/purchase` | `routes/credits.ts` | Stripe Checkout URL for the 50-credit package (€2.99) |
+| POST | `/api/billing/subscribe` | `routes/billing.ts` | Stripe Checkout URL for the business subscription (€5.99/mo) |
+| POST | `/api/billing/portal` | `routes/billing.ts` | Stripe Customer Portal URL (manage/cancel subscription) |
+| POST | `/api/billing/webhook` | `routes/billing.ts` | Stripe fulfilment: credit grants + subscription state sync. Raw-body route registered in `index.ts` **before** `express.json()` |
 | POST | `/api/download/request` | `routes/download.ts` | Replaced `/api/ads/confirm-view`: requires auth, atomically debits 1 credit (skipped for business), issues the download JWT |
 | GET | `/api/download/:token` | `routes/download.ts` | Validates JWT, streams signed PDF, deletes files |
 
@@ -37,11 +40,10 @@ signup bonus) and the atomic credit debit (`debitCreditForDownload` — conditio
 Users/credits live in Postgres via Prisma (`prisma/schema.prisma`, client singleton in
 `src/db/prisma.ts`). Jobs are still in-memory (`store/jobs.ts`).
 
-### Planned — payments milestone (rest of Phase 2´)
+### Planned — rest of Phase 2´
 
-`POST /api/billing/subscribe` (business subscription), `POST /api/account/stamp` (business
-stamp upload), and a real `PaymentProvider` implementation (Stripe) behind
-`services/billing/PaymentProvider.ts`.
+`POST /api/account/stamp` (business stamp upload). Payments are done — see
+`services/billing/` below.
 
 ## Service layer
 
@@ -70,8 +72,14 @@ Issues and verifies single-use JWT download tokens. Secret from `DOWNLOAD_TOKEN_
 ### `services/users.ts`
 User provisioning + credit accounting (see "Auth" above).
 
-### `services/billing/PaymentProvider.ts`
-Interface only for now — Stripe implementation arrives with the payments milestone. See `docs/ACCOUNTS.md`.
+### `services/billing/`
+`PaymentProvider.ts` (provider-agnostic interface) + `StripePaymentProvider.ts`
+(implementation, exports the `paymentProvider` singleton). Checkout endpoints only mint
+redirect URLs; **all fulfilment happens in the webhook** — package credits are granted
+idempotently (`CreditTransaction.stripeEventId` unique constraint absorbs retries),
+subscription state is a pure projection of the Stripe subscription object. Env vars are
+read lazily: without Stripe keys the server boots fine and billing endpoints return `503`.
+See `docs/ACCOUNTS.md` for the full mechanics.
 
 ## Job state machine
 
@@ -98,6 +106,10 @@ and all its PDFs 1 hour after upload (GDPR retention bound).
 | `SUPABASE_JWT_SECRET` | (optional) | Legacy HS256 secret; only for older Supabase projects |
 | `DATABASE_URL` | (required for auth) | Supabase Postgres, transaction pooler (`:6543`, `?pgbouncer=true`) — Prisma runtime |
 | `DIRECT_URL` | (required for auth) | Supabase Postgres, session pooler (`:5432`) — `prisma migrate` |
+| `STRIPE_SECRET_KEY` | (required for billing) | `sk_test_...` / `sk_live_...` |
+| `STRIPE_WEBHOOK_SECRET` | (required for billing) | `whsec_...` — from the dashboard endpoint, or from `stripe listen` in dev |
+| `STRIPE_PRICE_CREDITS_50` | (required for billing) | `price_...` of the 50-credit one-time product |
+| `STRIPE_PRICE_BUSINESS_MONTHLY` | (required for billing) | `price_...` of the €5.99/mo recurring product |
 
 Phase 3+ env vars (cloud QES providers) are in `.env.example` with TODO comments.
 

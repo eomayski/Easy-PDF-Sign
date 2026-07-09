@@ -119,7 +119,7 @@ download is gated.
 
 ---
 
-## Accounts & Credits  _(Phase 2´ — auth + credits implemented; payments pending)_
+## Accounts & Credits  _(Phase 2´ — auth, credits & Stripe payments implemented; stamp upload pending)_
 
 Full design in `docs/ACCOUNTS.md`. **Register / login / logout / password reset are not
 backend endpoints** — the frontend talks to Supabase Auth directly via
@@ -133,12 +133,32 @@ Also provisions the local user row (with the 5-credit signup bonus) on first cal
 ### GET /credits/balance  _(auth required)_
 **Response `200`:** `{ "credits": 5, "accountType": "free" | "business" }`.
 
-### POST /credits/purchase  _(auth required — **501 stub**)_
-Will buy a package (50 credits for €2.99, one-time, non-expiring) via `PaymentProvider`
-(Stripe) in the payments milestone. Currently returns `501`.
+### POST /credits/purchase  _(auth required)_
+Buys the 50-credit package (€2.99, one-time, non-expiring) via Stripe Checkout.
+```json
+{ "returnPath": "/sign" }
+```
+`returnPath` (optional) — in-app path to return to after checkout; validated server-side, defaults to `/sign`.
+**Response `200`:** `{ "checkoutUrl": "https://checkout.stripe.com/..." }` — the client does a full redirect.
+Credits are granted by the **webhook** after payment, not by this endpoint.
+**Response `503`:** Stripe env vars not configured.
 
-### POST /billing/subscribe  _(planned — payments milestone)_
-Starts/renews the business monthly subscription (unlimited credits, custom stamp upload).
+### POST /billing/subscribe  _(auth required)_
+Starts the business monthly subscription (€5.99/mo, unlimited credits) via Stripe Checkout.
+Body/response/errors identical in shape to `/credits/purchase`.
+
+### POST /billing/portal  _(auth required)_
+Creates a Stripe Customer Portal session where a business user manages/cancels the
+subscription. **Response `200`:** `{ "portalUrl": "..." }`. **Response `400`:** the user has
+no Stripe customer (never checked out).
+
+### POST /billing/webhook  _(Stripe only — signature-verified, no user auth)_
+Stripe event delivery: `checkout.session.completed` grants package credits (idempotent via
+the event id) or activates the subscription; `customer.subscription.updated` / `.deleted`
+sync `accountType` / `subscriptionStatus` / `subscriptionRenewsAt`. Mounted with a raw body
+parser before the global JSON middleware — the signature check needs the untouched bytes.
+Point the Stripe webhook endpoint **directly at the Railway backend URL** (not the Vercel
+domain) and set `STRIPE_WEBHOOK_SECRET` accordingly.
 
 ### POST /account/stamp  _(planned — payments milestone, business accounts only)_
 Uploads and persists a custom stamp/seal image (печат) for reuse across documents.

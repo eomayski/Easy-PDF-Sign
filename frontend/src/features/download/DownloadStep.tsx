@@ -4,9 +4,9 @@ import { Trans, useTranslation } from 'react-i18next';
 import type { RootState } from '../../store';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Modal } from '../../components/ui/Modal';
 import { useRequestDownloadMutation } from '../../store/api';
 import { setCredits } from '../auth/authSlice';
+import { BillingModal } from '../billing/BillingModal';
 import { SignedPdfPreview } from './SignedPdfPreview';
 
 interface Props {
@@ -147,25 +147,12 @@ export function DownloadStep({ jobId, onReset, onRequireLogin }: Props) {
         </Button>
       </Card>
 
-      {/* Upsell — 0 credits (packages arrive with the payment milestone) */}
-      <Modal open={showUpsell} onClose={() => setShowUpsell(false)} title={t('download.upsellTitle')}>
-        <div className="space-y-4">
-          <p className="text-sm text-slate-600">{t('download.upsellText')}</p>
-          <div className="rounded-xl border-2 border-brand-200 bg-brand-50 p-4">
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-slate-900">{t('download.pack50')}</span>
-              <span className="text-lg font-bold text-brand-700">€2.99</span>
-            </div>
-            <p className="mt-1 text-sm text-slate-500">{t('download.packNote')}</p>
-          </div>
-          <Button variant="primary" className="w-full" disabled>
-            {t('download.buySoon')}
-          </Button>
-          <Button variant="ghost" size="sm" className="w-full" onClick={() => setShowUpsell(false)}>
-            {t('common.close')}
-          </Button>
-        </div>
-      </Modal>
+      {/* Upsell — 0 credits: пакети + абонамент (Stripe) */}
+      <BillingModal
+        open={showUpsell}
+        onClose={() => setShowUpsell(false)}
+        intro={t('download.upsellText')}
+      />
     </div>
   );
 }

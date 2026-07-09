@@ -2,9 +2,11 @@
 
 Status: **Milestone 1 implemented & verified E2E** (2026-07-04) — Supabase Auth
 (email+password + Google OAuth), signup bonus, atomic download debit, free re-download,
-TTL cleanup. **Milestone 2 pending** — Stripe packages, business subscriptions, stamp
-upload. This replaces the abandoned Phase 2 rewarded-ads plan (GAM). See the Phase table
-in `CLAUDE.md`.
+TTL cleanup. **Milestone 2: Stripe payments implemented** (2026-07-10) — credit packages,
+business subscriptions (€5.99/mo) and the Customer Portal via `StripePaymentProvider`;
+awaiting live Stripe keys + E2E verification. **Still pending:** business stamp upload
+(`POST /account/stamp`). This replaces the abandoned Phase 2 rewarded-ads plan (GAM).
+See the Phase table in `CLAUDE.md`.
 
 ## Why
 
@@ -29,7 +31,7 @@ Only the **download** of the final signed PDF is gated, on two conditions:
 - 1 credit is debited per successful document download.
 
 ### Business
-- Monthly subscription (recurring billing).
+- Monthly subscription: **€5.99/month** (recurring billing, decided 2026-07-10).
 - Unlimited signature credits — no per-download debit while the subscription is active.
 - Can upload and persist a custom stamp/seal image (печат) reused as the default visual
   signature stamp across documents (extends the existing `visualConfig.imageDataUrl`
@@ -84,20 +86,24 @@ disputes/refunds will happen.
 
 ## Payment provider
 
-New extension point (replaces the abandoned `AdProvider`/`AdVerifier` pair):
+Extension point (replaces the abandoned `AdProvider`/`AdVerifier` pair), **implemented
+2026-07-10** with Stripe hosted Checkout — see
+`backend/src/services/billing/PaymentProvider.ts` (interface) and
+`StripePaymentProvider.ts` (implementation). Key mechanics:
 
-```ts
-interface PaymentProvider {
-  createPackageCheckout(userId, package: "50-credits"): Promise<{ checkoutUrl: string }>;
-  createSubscriptionCheckout(userId): Promise<{ checkoutUrl: string }>;
-  handleWebhook(payload, signature): Promise<PaymentEvent>; // credits packages / subscription renewals / cancellations
-}
-```
+- Checkout/portal endpoints only mint a redirect URL; **fulfilment happens exclusively in
+  the webhook** (`POST /api/billing/webhook`, raw-body signature verification).
+- Package credit grants are idempotent: the Stripe event id is stored on
+  `CreditTransaction.stripeEventId` (unique) so webhook retries can't double-credit.
+- Subscription state is a pure projection of the Stripe subscription object
+  (`accountType`, `subscriptionStatus`, `subscriptionRenewsAt`), safe under retries and
+  out-of-order delivery. Cancellation demotes the account back to `free` (existing
+  credits are kept).
+- Env vars: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_CREDITS_50`,
+  `STRIPE_PRICE_BUSINESS_MONTHLY`. All lazily read — the backend boots and everything
+  else works without them (billing endpoints return `503`).
 
-Stripe is the natural default (SCA/3-D Secure support for EU cards, EUR pricing, hosted
-Checkout, subscription billing, webhooks) but the interface should stay provider-agnostic
-in case a Bulgarian/EU processor is preferred later. Implement under
-`backend/src/services/billing/`.
+The interface stays provider-agnostic in case a Bulgarian/EU processor is preferred later.
 
 ## Open questions / not yet decided
 

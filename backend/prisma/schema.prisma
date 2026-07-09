@@ -22,6 +22,8 @@ model User {
   subscriptionStatus  String? // "active" | "past_due" | "canceled"
   subscriptionRenewsAt DateTime?
   stampImageUrl       String? // business only
+  stripeCustomerId    String?             @unique // set on first checkout
+  stripeSubscriptionId String? // business subscription (sub_...)
   createdAt           DateTime            @default(now())
   creditTransactions  CreditTransaction[]
 }
@@ -33,6 +35,9 @@ model CreditTransaction {
   delta     Int // +5 signup bonus, +50 package purchase, -1 download debit
   reason    String // "signup_bonus" | "package_purchase" | "download_debit" | "refund"
   jobId     String? // for download_debit
+  // Stripe webhook event id for package purchases — the unique constraint is
+  // what makes webhook retries idempotent (second insert fails with P2002).
+  stripeEventId String? @unique
   createdAt DateTime @default(now())
 
   @@index([userId])

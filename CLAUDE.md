@@ -32,7 +32,7 @@ cd helper-agent && npm run dev
 | 0 | ✅ Done | Upload → viewer → draw signature box → appearance config → mock sign → gated download |
 | 1 | ✅ Done | Real PAdES via PKCS#11 local helper agent (smart card, Windows) — signs with PIN, verified against eIDAS validation site |
 | 2 | ❌ Abandoned | Rewarded ads (GAM). Decision: dropped in favor of an account + signature-credit model — see Phase 2´ and `docs/ACCOUNTS.md` |
-| 2´ | 🔨 In progress | Milestone 1 **done & verified E2E**: Supabase Auth (email+parola и Google OAuth), 5 credits при регистрация, атомарен дебит при download, preview + безплатно повторно изтегляне, TTL чистач. Pending: paid packages (Stripe), business subscriptions + stamp. See `docs/ACCOUNTS.md` |
+| 2´ | 🔨 In progress | Milestone 1 **done & verified E2E**: Supabase Auth (email+parola и Google OAuth), 5 credits при регистрация, атомарен дебит при download, preview + безплатно повторно изтегляне, TTL чистач. Milestone 2 **имплементиран** (2026-07-10): Stripe Checkout — пакет 50 кредита/€2.99, business абонамент €5.99/мес, Customer Portal; чака Stripe ключове + E2E тест. Pending: business stamp upload. See `docs/ACCOUNTS.md` |
 | 3 | ⏸ On hold | Cloud QES — Evrotrust REST API via `CloudSignerProvider` (deprioritized, not currently planned) |
 | 4 | ⏸ On hold | B-Trust cloud QES (deprioritized, not currently planned) |
 | 5 | 🔲 — | PAdES B-T/B-LT (timestamps), i18n |
@@ -45,7 +45,7 @@ Replaces the ad-gated download model from Phase 0. Full design in `docs/ACCOUNTS
 - **Credit debit happens at download time, not at sign time** — 1 credit is debited per signed document, at download-token issuance (`POST /download/request`). Re-downloads with the same token are free (retry after an interrupted stream); files live max 1 h after upload (TTL sweeper).
 - **New accounts start with 5 free credits.**
 - **Paid packages:** 50 credits for €2.99, one-time purchase, credits do not expire.
-- **Business accounts:** monthly subscription, unlimited signature credits (no debit), and can upload/store a custom stamp image (печат) reused across documents.
+- **Business accounts:** €5.99/month subscription, unlimited signature credits (no debit), and can upload/store a custom stamp image (печат) reused across documents (stamp upload still pending).
 - Credit balance checks + debits must be an atomic server-side operation (DB transaction) to avoid race conditions from parallel download requests.
 
 ## Critical architectural constraints

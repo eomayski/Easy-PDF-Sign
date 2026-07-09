@@ -8,6 +8,7 @@ import signRouter from './routes/sign';
 import authRouter from './routes/auth';
 import creditsRouter from './routes/credits';
 import downloadRouter from './routes/download';
+import billingRouter, { stripeWebhookHandler } from './routes/billing';
 
 const app = express();
 const PORT = parseInt(process.env.PORT ?? '4000', 10);
@@ -15,6 +16,15 @@ const PORT = parseInt(process.env.PORT ?? '4000', 10);
 const allowedOrigins = (process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173')
   .split(',').map((o) => o.trim()).filter(Boolean);
 app.use(cors({ origin: allowedOrigins }));
+
+// Stripe webhook needs the raw body for signature verification — must be
+// registered before the global JSON parser.
+app.post(
+  '/api/billing/webhook',
+  express.raw({ type: 'application/json' }),
+  stripeWebhookHandler,
+);
+
 app.use(express.json({ limit: '10mb' }));
 
 app.use('/api/upload', uploadRouter);
@@ -23,6 +33,7 @@ app.use('/api/sign', signRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/credits', creditsRouter);
 app.use('/api/download', downloadRouter);
+app.use('/api/billing', billingRouter);
 
 // Installer downloads (populated by CI — see helper-agent/installer/)
 app.use('/downloads', express.static(path.join(__dirname, '../public/downloads')));

@@ -32,6 +32,8 @@ Routing is react-router-dom (`BrowserRouter` in `main.tsx`): `/` is the landing 
 store/
   api          RTK Query endpoints (uploadPdf, prepareSign, completeSign, getMe, requestDownload)
                 — prepareHeaders attaches the Supabase Bearer token automatically
+                — billing endpoints (purchaseCredits, subscribeBusiness, billingPortal)
+                  връщат URL за пълен redirect към Stripe
   upload       { jobId, numPages, fileName }
   signing      { method, status, byteRangeHash, errorMessage }
   auth         { user: { userId, email, accountType, credits } | null, sessionChecked }
@@ -47,7 +49,8 @@ store/
 | `signature-box/` | `SignatureBox.tsx` | Konva canvas overlay; draw + resize + drag rectangle |
 | `sign-config/` | `SignConfigStep.tsx`, `HandwrittenSignatureModal.tsx` | Appearance options; signature_pad canvas |
 | `signing/` | `SigningStep.tsx`, `signingSlice.ts` | Method picker; orchestrates prepare → (agent) → complete. Does NOT mint the download token — that moved to DownloadStep (Phase 2´) |
-| `auth/` | `AuthModal.tsx`, `AccountWidget.tsx`, `authSlice.ts`, `useSupabaseSession.ts` | Login/register (email+password + Google OAuth via Supabase), header widget with credit balance |
+| `auth/` | `AuthModal.tsx`, `AccountWidget.tsx`, `authSlice.ts`, `useSupabaseSession.ts` | Login/register (email+password + Google OAuth via Supabase), header widget with credit balance (badge opens BillingModal) |
+| `billing/` | `BillingModal.tsx`, `BillingReturnBanner.tsx` | Stripe покупки: modal с пакета (€2.99) и business абонамента (€5.99/мес) → redirect към hosted Checkout; за business — Customer Portal. Банерът чете `?billing=success\|cancelled` при връщането и опреснява баланса със закъснение (webhook-ът начислява кредитите) |
 | `download/` | `DownloadStep.tsx`, `SignedPdfPreview.tsx` | pdf.js canvas preview (always visible); download button calls `requestDownload` (401 → AuthModal, 402 → upsell modal). Token cached in sessionStorage — re-downloads are free |
 
 ## Accounts & Credits (Phase 2´ — milestone 1 implemented)
@@ -56,7 +59,7 @@ Full design in `docs/ACCOUNTS.md`. Implementation notes:
 
 - Supabase client in `src/lib/supabase.ts` (env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`; null-safe when unset). `useSupabaseSession()` (called in `App.tsx`) syncs the Supabase session → `GET /auth/me` → `auth` slice.
 - Google OAuth does a full-page redirect — the signing flow survives it via `src/lib/flowPersistence.ts` (sessionStorage: step, upload info, placement, visualConfig). This also makes F5 survivable.
-- Pending (payments milestone): `account/`/`billing/` module — package purchase (Stripe), business subscription management, custom stamp upload.
+- Payments (Stripe) implemented — see the `billing/` module above. Pending: custom stamp upload for business accounts.
 
 ## Coordinate system — important
 

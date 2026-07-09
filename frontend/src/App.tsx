@@ -12,6 +12,7 @@ import { SigningStep } from './features/signing/SigningStep';
 import { DownloadStep } from './features/download/DownloadStep';
 import { AuthModal } from './features/auth/AuthModal';
 import { AccountWidget } from './features/auth/AccountWidget';
+import { BillingReturnBanner } from './features/billing/BillingReturnBanner';
 import { useSupabaseSession } from './features/auth/useSupabaseSession';
 import { resetUpload, setUploadResult } from './features/upload/uploadSlice';
 import { reset as resetSigning } from './features/signing/signingSlice';
@@ -103,6 +104,7 @@ export function App() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8">
+        <BillingReturnBanner />
         <Routes>
           <Route path="/" element={<LandingPage onStart={() => navigate('/sign')} />} />
 

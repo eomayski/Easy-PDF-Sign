@@ -86,6 +86,28 @@ export const api = createApi({
         body,
       }),
     }),
+    // Billing (Stripe) — всички връщат URL за пълен redirect към hosted страница
+    purchaseCredits: builder.mutation<{ checkoutUrl: string }, { returnPath?: string }>({
+      query: (body) => ({
+        url: '/credits/purchase',
+        method: 'POST',
+        body,
+      }),
+    }),
+    subscribeBusiness: builder.mutation<{ checkoutUrl: string }, { returnPath?: string }>({
+      query: (body) => ({
+        url: '/billing/subscribe',
+        method: 'POST',
+        body,
+      }),
+    }),
+    billingPortal: builder.mutation<{ portalUrl: string }, { returnPath?: string }>({
+      query: (body) => ({
+        url: '/billing/portal',
+        method: 'POST',
+        body,
+      }),
+    }),
   }),
 });
 
@@ -96,4 +118,7 @@ export const {
   usePollJobQuery,
   useGetMeQuery,
   useRequestDownloadMutation,
+  usePurchaseCreditsMutation,
+  useSubscribeBusinessMutation,
+  useBillingPortalMutation,
 } = api;
