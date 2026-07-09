@@ -39,10 +39,28 @@ function returnUrls(ctx: CheckoutContext): { success_url: string; cancel_url: st
   return { success_url: `${base}?billing=success`, cancel_url: `${base}?billing=cancelled` };
 }
 
-/** Reuses the stored Stripe customer or creates one keyed to our user id. */
+/**
+ * Reuses the stored Stripe customer or creates one keyed to our user id.
+ * The stored id is verified against Stripe first: a customer created in test
+ * mode doesn't exist for a live key (and vice versa), so switching modes would
+ * otherwise permanently break checkout for that user — recreate instead.
+ */
 async function getOrCreateCustomer(ctx: CheckoutContext): Promise<string> {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: ctx.userId } });
-  if (user.stripeCustomerId) return user.stripeCustomerId;
+
+  if (user.stripeCustomerId) {
+    try {
+      const existing = await stripe().customers.retrieve(user.stripeCustomerId);
+      if (!existing.deleted) return user.stripeCustomerId;
+    } catch (err) {
+      const missing =
+        err instanceof Stripe.errors.StripeInvalidRequestError && err.code === 'resource_missing';
+      if (!missing) throw err;
+      console.warn(
+        `Stripe customer ${user.stripeCustomerId} not found in this mode — recreating for user ${ctx.userId}`,
+      );
+    }
+  }
 
   const customer = await stripe().customers.create({
     email: ctx.email,
