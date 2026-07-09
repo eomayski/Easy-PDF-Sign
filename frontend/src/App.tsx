@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
+import { Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { Stepper } from './components/ui/Stepper';
 import { LanguageSwitcher } from './components/ui/LanguageSwitcher';
 import { LandingPage } from './features/landing/LandingPage';
@@ -27,10 +28,10 @@ export function App() {
   const upload = useSelector((s: RootState) => s.upload);
   const { jobId } = upload;
 
+  const navigate = useNavigate();
+
   // Restore the flow after a full page reload (e.g. the Google OAuth redirect)
   const [restored] = useState(() => loadFlow());
-  // Landing е началният изглед; при възстановен flow влизаме директно в него.
-  const [view, setView] = useState<'landing' | 'flow'>(restored ? 'flow' : 'landing');
   const [step, setStep] = useState(restored?.step ?? 0);
   const [placement, setPlacement] = useState<SignaturePlacement | null>(
     restored?.placement ?? null,
@@ -41,7 +42,11 @@ export function App() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
   useEffect(() => {
-    if (restored) dispatch(setUploadResult(restored.upload));
+    if (restored) {
+      dispatch(setUploadResult(restored.upload));
+      // При възстановен flow (OAuth redirect / F5 на "/") влизаме директно в него.
+      navigate('/sign', { replace: true });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -71,7 +76,7 @@ export function App() {
       {/* Header */}
       <header className="border-b border-slate-200 bg-white shadow-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2">
             <svg
               className="h-7 w-7 text-brand-600"
               viewBox="0 0 24 24"
@@ -86,7 +91,7 @@ export function App() {
               />
             </svg>
             <span className="text-lg font-bold text-slate-900">Easy PDF Sign</span>
-          </div>
+          </Link>
           <div className="flex items-center gap-4">
             <span className="hidden text-xs text-slate-400 lg:block">
               {t('header.tagline')}
@@ -98,54 +103,65 @@ export function App() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8">
-        {view === 'landing' && <LandingPage onStart={() => setView('flow')} />}
+        <Routes>
+          <Route path="/" element={<LandingPage onStart={() => navigate('/sign')} />} />
 
-        {/* Stepper (hidden on download step) */}
-        {view === 'flow' && step < 4 && (
-          <div className="mb-8">
-            <Stepper steps={STEP_KEYS.map((k) => ({ label: t(k) }))} current={step} />
-          </div>
-        )}
+          <Route
+            path="/sign"
+            element={
+              <>
+                {/* Stepper (hidden on download step) */}
+                {step < 4 && (
+                  <div className="mb-8">
+                    <Stepper steps={STEP_KEYS.map((k) => ({ label: t(k) }))} current={step} />
+                  </div>
+                )}
 
-        {view === 'flow' && step === 0 && <UploadStep onNext={() => setStep(1)} />}
+                {step === 0 && <UploadStep onNext={() => setStep(1)} />}
 
-        {step === 1 && (
-          <ViewerStep
-            onBack={() => setStep(0)}
-            onNext={(p) => {
-              setPlacement(p);
-              setStep(2);
-            }}
+                {step === 1 && (
+                  <ViewerStep
+                    onBack={() => setStep(0)}
+                    onNext={(p) => {
+                      setPlacement(p);
+                      setStep(2);
+                    }}
+                  />
+                )}
+
+                {step === 2 && placement && (
+                  <SignConfigStep
+                    placement={placement}
+                    onBack={() => setStep(1)}
+                    onNext={(config) => {
+                      setVisualConfig(config);
+                      setStep(3);
+                    }}
+                  />
+                )}
+
+                {step === 3 && placement && visualConfig && (
+                  <SigningStep
+                    placement={placement}
+                    visualConfig={visualConfig}
+                    onBack={() => setStep(2)}
+                    onDone={() => setStep(4)}
+                  />
+                )}
+
+                {step === 4 && jobId && (
+                  <DownloadStep
+                    jobId={jobId}
+                    onReset={handleReset}
+                    onRequireLogin={() => setAuthModalOpen(true)}
+                  />
+                )}
+              </>
+            }
           />
-        )}
 
-        {step === 2 && placement && (
-          <SignConfigStep
-            placement={placement}
-            onBack={() => setStep(1)}
-            onNext={(config) => {
-              setVisualConfig(config);
-              setStep(3);
-            }}
-          />
-        )}
-
-        {step === 3 && placement && visualConfig && (
-          <SigningStep
-            placement={placement}
-            visualConfig={visualConfig}
-            onBack={() => setStep(2)}
-            onDone={() => setStep(4)}
-          />
-        )}
-
-        {step === 4 && jobId && (
-          <DownloadStep
-            jobId={jobId}
-            onReset={handleReset}
-            onRequireLogin={() => setAuthModalOpen(true)}
-          />
-        )}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
 
       <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />

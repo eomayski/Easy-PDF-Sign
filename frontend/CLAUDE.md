@@ -12,16 +12,15 @@ npm run build  # tsc + vite build → dist/
 ## UX flow
 
 ```
-Landing            → LandingPage (marketing page + pinned-scroll demo of the flow;
-                     shown initially unless a flow is being restored after OAuth/F5)
-Step 0: Upload     → UploadStep
-Step 1: Place      → ViewerStep (pdf.js + SignatureBox overlay)
-Step 2: Appearance → SignConfigStep
-Step 3: Sign       → SigningStep
-Step 4: Download   → DownloadStep
+/      Landing     → LandingPage (marketing page + pinned-scroll demo of the flow)
+/sign  Step 0      → UploadStep
+       Step 1      → ViewerStep (pdf.js + SignatureBox overlay)
+       Step 2      → SignConfigStep (appearance)
+       Step 3      → SigningStep
+       Step 4      → DownloadStep
 ```
 
-The landing↔flow switch (`view`) and the current step live in `App.tsx` (local useState). Cross-step data (`placement`, `visualConfig`, `downloadToken`) is passed as props. Redux handles server-derived state.
+Routing is react-router-dom (`BrowserRouter` in `main.tsx`): `/` is the landing page, `/sign` is the signing flow, everything else redirects to `/`. The header brand links to `/`. If a persisted flow is restored after a full reload (OAuth redirect / F5), `App.tsx` navigates straight to `/sign`. The current step lives in `App.tsx` (local useState) so it survives landing↔flow navigation. Cross-step data (`placement`, `visualConfig`, `downloadToken`) is passed as props. Redux handles server-derived state. Production needs the SPA fallback rewrite in `vercel.json` (`/:path*` → `/index.html`).
 
 ## i18n (BG/EN)
 
