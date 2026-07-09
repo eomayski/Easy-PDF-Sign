@@ -29,7 +29,7 @@ export const en: TranslationSchema = {
   viewer: {
     drawHintStrong: 'Draw an area',
     drawHintRest:
-      ' for the signature: press and drag a rectangle on the page. You can move and resize it afterwards.',
+      ' for the signature: press and drag a rectangle on the page. On a touch screen, press and hold for a moment, then drag. You can move and resize it afterwards.',
     pageOf: 'Page {{current}} of {{total}}',
     prev: '← Previous',
     next: 'Next →',

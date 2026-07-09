@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { Stage, Layer, Rect, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import type { ViewportRect } from '../../types';
@@ -11,12 +11,20 @@ interface Props {
 }
 
 const MIN_SIZE = 60;
+// Touch: a long-press starts drawing; a plain swipe must stay free for page scrolling.
+const LONG_PRESS_MS = 400;
+const LONG_PRESS_MOVE_TOLERANCE = 10;
+
+const isCoarsePointer =
+  typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
 export function SignatureBox({ width, height, rect, onChange }: Props) {
   const [drawing, setDrawing] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const rectRef = useRef<Konva.Rect>(null);
   const trRef = useRef<Konva.Transformer>(null);
+  const longPressTimer = useRef<number | null>(null);
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null);
 
   // Attach transformer to rect when rect is placed
   const attachTransformer = useCallback(() => {
@@ -26,13 +34,18 @@ export function SignatureBox({ width, height, rect, onChange }: Props) {
     }
   }, []);
 
-  const handleMouseDown = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
-      // If clicking on the rect itself, let the transformer handle it
-      if (e.target !== e.target.getStage()) return;
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimer.current !== null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    touchStartPos.current = null;
+  }, []);
 
-      const stage = e.target.getStage();
-      const pos = stage!.getPointerPosition()!;
+  useEffect(() => cancelLongPress, [cancelLongPress]);
+
+  const beginDrawing = useCallback(
+    (pos: { x: number; y: number }) => {
       setStartPos(pos);
       setDrawing(true);
       onChange({ x: pos.x, y: pos.y, width: 0, height: 0 });
@@ -40,10 +53,8 @@ export function SignatureBox({ width, height, rect, onChange }: Props) {
     [onChange],
   );
 
-  const handleMouseMove = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
-      if (!drawing) return;
-      const pos = e.target.getStage()!.getPointerPosition()!;
+  const updateDrawing = useCallback(
+    (pos: { x: number; y: number }) => {
       onChange({
         x: Math.min(startPos.x, pos.x),
         y: Math.min(startPos.y, pos.y),
@@ -51,7 +62,27 @@ export function SignatureBox({ width, height, rect, onChange }: Props) {
         height: Math.abs(pos.y - startPos.y),
       });
     },
-    [drawing, startPos, onChange],
+    [startPos, onChange],
+  );
+
+  const handleMouseDown = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      // If clicking on the rect itself, let the transformer handle it
+      if (e.target !== e.target.getStage()) return;
+
+      const stage = e.target.getStage();
+      const pos = stage!.getPointerPosition()!;
+      beginDrawing(pos);
+    },
+    [beginDrawing],
+  );
+
+  const handleMouseMove = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      if (!drawing) return;
+      updateDrawing(e.target.getStage()!.getPointerPosition()!);
+    },
+    [drawing, updateDrawing],
   );
 
   const handleMouseUp = useCallback(() => {
@@ -63,6 +94,49 @@ export function SignatureBox({ width, height, rect, onChange }: Props) {
       attachTransformer();
     }
   }, [rect, onChange, attachTransformer]);
+
+  const handleTouchStart = useCallback(
+    (e: Konva.KonvaEventObject<TouchEvent>) => {
+      // Touching the rect/transformer: Konva handles drag & resize itself
+      if (e.target !== e.target.getStage()) return;
+      cancelLongPress();
+      if (e.evt.touches.length > 1) return; // pinch/two-finger — leave to the browser
+
+      const pos = e.target.getStage()!.getPointerPosition();
+      if (!pos) return;
+      touchStartPos.current = pos;
+      longPressTimer.current = window.setTimeout(() => {
+        longPressTimer.current = null;
+        navigator.vibrate?.(15);
+        beginDrawing(pos);
+      }, LONG_PRESS_MS);
+    },
+    [beginDrawing, cancelLongPress],
+  );
+
+  const handleTouchMove = useCallback(
+    (e: Konva.KonvaEventObject<TouchEvent>) => {
+      if (drawing) {
+        e.evt.preventDefault(); // keep the page from scrolling while drawing
+        const pos = e.target.getStage()!.getPointerPosition();
+        if (pos) updateDrawing(pos);
+        return;
+      }
+      // Finger moved before the long-press fired → it's a scroll, not a draw
+      if (longPressTimer.current !== null && touchStartPos.current) {
+        const pos = e.target.getStage()!.getPointerPosition();
+        if (!pos) return;
+        const moved = Math.hypot(pos.x - touchStartPos.current.x, pos.y - touchStartPos.current.y);
+        if (moved > LONG_PRESS_MOVE_TOLERANCE) cancelLongPress();
+      }
+    },
+    [drawing, updateDrawing, cancelLongPress],
+  );
+
+  const handleTouchEnd = useCallback(() => {
+    cancelLongPress();
+    if (drawing) handleMouseUp();
+  }, [drawing, handleMouseUp, cancelLongPress]);
 
   const handleTransformEnd = useCallback(() => {
     const node = rectRef.current;
@@ -94,7 +168,17 @@ export function SignatureBox({ width, height, rect, onChange }: Props) {
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
-      style={{ cursor: drawing ? 'crosshair' : 'default' }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onContextMenu={(e) => e.evt.preventDefault()}
+      style={{
+        cursor: drawing ? 'crosshair' : 'default',
+        touchAction: 'manipulation',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        WebkitTouchCallout: 'none',
+      }}
     >
       <Layer>
         {hasRect && (
@@ -123,6 +207,7 @@ export function SignatureBox({ width, height, rect, onChange }: Props) {
             />
             <Transformer
               ref={trRef}
+              anchorSize={isCoarsePointer ? 16 : 10}
               boundBoxFunc={(oldBox, newBox) => {
                 if (newBox.width < MIN_SIZE || newBox.height < MIN_SIZE) return oldBox;
                 return newBox;
