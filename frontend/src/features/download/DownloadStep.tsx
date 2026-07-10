@@ -130,7 +130,11 @@ export function DownloadStep({ jobId, onReset, onRequireLogin }: Props) {
             : syncing
               ? t('download.btnLoggingIn')
               : user
-                ? t('download.btnDownload')
+                ? t(
+                    user.accountType === 'business'
+                      ? 'download.btnDownloadBusiness'
+                      : 'download.btnDownload',
+                  )
                 : t('download.btnLogin')}
         </Button>
 

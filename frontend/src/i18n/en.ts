@@ -114,6 +114,7 @@ export const en: TranslationSchema = {
     btnAgain: 'Download again (free)',
     btnLoggingIn: 'Signing in...',
     btnDownload: 'Download the signed PDF (1 credit)',
+    btnDownloadBusiness: 'Download the signed PDF',
     btnLogin: 'Sign in and download',
     signAnother: 'Sign another document',
     upsellText:

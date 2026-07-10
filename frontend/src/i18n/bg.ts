@@ -117,6 +117,7 @@ export const bg = {
     btnAgain: 'Изтегли отново (безплатно)',
     btnLoggingIn: 'Влизане...',
     btnDownload: 'Изтегли подписания PDF (1 кредит)',
+    btnDownloadBusiness: 'Изтегли подписания PDF',
     btnLogin: 'Влез и изтегли',
     signAnother: 'Подпиши нов документ',
     upsellText:
