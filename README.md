@@ -4,7 +4,7 @@
 
 A web app for signing PDF documents with a **Qualified Electronic Signature** (QES, PAdES / eIDAS), aimed at the Bulgarian / EU market. Upload a PDF, draw where the signature should appear, sign with your smart-card certificate through a small local helper agent, preview the result, and download the signed file.
 
-🔗 **Live:** [easy-pdf-sign-nine.vercel.app](https://easy-pdf-sign-nine.vercel.app)
+🔗 **Live:** [pdf-easy.online](https://pdf-easy.online/)
 
 ## How it works
 
