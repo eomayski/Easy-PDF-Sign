@@ -59,3 +59,5 @@ Working today: end-to-end QES signing with physical smart cards (verified agains
 ## License
 
 Source-available for transparency — especially so you can audit what the helper agent does with your smart card. **No license is granted** for reuse, redistribution, or derivative works. All rights reserved.
+
+© 2026 Emil Omayski (Емил Омайски).

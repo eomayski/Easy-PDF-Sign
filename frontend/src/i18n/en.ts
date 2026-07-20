@@ -221,5 +221,6 @@ export const en: TranslationSchema = {
     cta2h: 'Your first signature is one click away',
     cta2p: 'See for yourself that it works — no account needed.',
     foot: 'Qualified electronic signature · PAdES · eIDAS',
+    footCopyright: '© 2026 Emil Omayski · Easy PDF Sign · pdf-easy.online',
   },
 };

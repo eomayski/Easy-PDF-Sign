@@ -226,6 +226,7 @@ export const bg = {
     cta2h: 'Първият подпис е на един клик разстояние',
     cta2p: 'Уверете се, че работи — акаунт не е необходим.',
     foot: 'Квалифициран електронен подпис · PAdES · eIDAS',
+    footCopyright: '© 2026 Емил Омайски · Easy PDF Sign · pdf-easy.online',
   },
 };
 

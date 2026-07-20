@@ -32,7 +32,7 @@ export function LandingPage({ onStart }: Props) {
 
       <footer className="border-t border-slate-200 py-8 text-sm text-slate-500">
         <div className="flex flex-wrap justify-between gap-3">
-          <span>© 2026 Easy PDF Sign · pdf-easy.online</span>
+          <span>{t('landing.footCopyright')}</span>
           <span>{t('landing.foot')}</span>
         </div>
       </footer>
