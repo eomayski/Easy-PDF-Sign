@@ -14,6 +14,7 @@ import { AuthModal } from './features/auth/AuthModal';
 import { AccountWidget } from './features/auth/AccountWidget';
 import { BillingReturnBanner } from './features/billing/BillingReturnBanner';
 import { useSupabaseSession } from './features/auth/useSupabaseSession';
+import { endPasswordRecovery } from './features/auth/authSlice';
 import { resetUpload, setUploadResult } from './features/upload/uploadSlice';
 import { reset as resetSigning } from './features/signing/signingSlice';
 import { clearFlow, loadFlow, saveFlow } from './lib/flowPersistence';
@@ -27,6 +28,7 @@ export function App() {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const upload = useSelector((s: RootState) => s.upload);
+  const passwordRecovery = useSelector((s: RootState) => s.auth.passwordRecovery);
   const { jobId } = upload;
 
   const navigate = useNavigate();
@@ -166,7 +168,14 @@ export function App() {
         </Routes>
       </main>
 
-      <AuthModal open={authModalOpen} onClose={() => setAuthModalOpen(false)} />
+      <AuthModal
+        open={authModalOpen || passwordRecovery}
+        mode={passwordRecovery ? 'reset' : 'auth'}
+        onClose={() => {
+          setAuthModalOpen(false);
+          if (passwordRecovery) dispatch(endPasswordRecovery());
+        }}
+      />
     </div>
   );
 }

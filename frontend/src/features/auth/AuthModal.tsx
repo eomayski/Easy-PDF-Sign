@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
@@ -7,22 +7,69 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** 'reset' показва само формата за нова парола (recovery линк или смяна от профила) */
+  mode?: Mode;
 }
 
 type Tab = 'login' | 'register';
+export type Mode = 'auth' | 'reset';
 
-export function AuthModal({ open, onClose }: Props) {
+export function AuthModal({ open, onClose, mode = 'auth' }: Props) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+  /** true = формата е превключена на „забравена парола“ (само имейл) */
+  const [forgot, setForgot] = useState(false);
 
   const resetMessages = () => {
     setError(null);
     setInfo(null);
+  };
+
+  // Чиста форма при всяко отваряне — без остатъчни пароли/съобщения от предишен път.
+  useEffect(() => {
+    if (!open) return;
+    setPassword('');
+    setConfirmPassword('');
+    setDone(false);
+    setForgot(false);
+    setError(null);
+    setInfo(null);
+  }, [open, mode]);
+
+  const backToLogin = () => {
+    setForgot(false);
+    setDone(false);
+    resetMessages();
+  };
+
+  const handleNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase) return;
+    resetMessages();
+    if (password !== confirmPassword) {
+      setError(t('auth.errPasswordMismatch'));
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error: err } = await supabase.auth.updateUser({ password });
+      if (err) throw err;
+      setInfo(t('auth.passwordUpdated'));
+      setDone(true);
+      setPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setError(t(authErrorKey(err)));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,18 +118,18 @@ export function AuthModal({ open, onClose }: Props) {
     }
   };
 
-  const handleForgottenPassword = async () => {
+  const handleForgottenPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!supabase) return;
     resetMessages();
-    if (!email) {
-      setError(t('auth.enterEmailFirst'));
-      return;
-    }
     setBusy(true);
     try {
-      const { error: err } = await supabase.auth.resetPasswordForEmail(email);
+      const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
       if (err) throw err;
       setInfo(t('auth.resetSent'));
+      setDone(true);
     } catch (err) {
       setError(t(authErrorKey(err)));
     } finally {
@@ -94,11 +141,112 @@ export function AuthModal({ open, onClose }: Props) {
     <Modal
       open={open}
       onClose={onClose}
-      title={tab === 'login' ? t('auth.login') : t('auth.register')}
+      title={
+        mode === 'reset'
+          ? t('auth.setNewPassword')
+          : forgot
+            ? t('auth.forgotTitle')
+            : tab === 'login'
+              ? t('auth.login')
+              : t('auth.register')
+      }
       maxWidth="sm"
     >
       {!isSupabaseConfigured ? (
         <p className="text-sm text-slate-500">{t('auth.notConfigured')}</p>
+      ) : mode === 'reset' ? (
+        <form onSubmit={handleNewPassword} className="space-y-4">
+          <div>
+            <label htmlFor="auth-new-password" className="mb-1 block text-sm font-medium text-slate-700">
+              {t('auth.newPassword')}
+            </label>
+            <input
+              id="auth-new-password"
+              type="password"
+              required
+              minLength={6}
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="auth-confirm-password"
+              className="mb-1 block text-sm font-medium text-slate-700"
+            >
+              {t('auth.confirmPassword')}
+            </label>
+            <input
+              id="auth-confirm-password"
+              type="password"
+              required
+              minLength={6}
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            />
+          </div>
+
+          {error && (
+            <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+          )}
+          {info && (
+            <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{info}</div>
+          )}
+
+          {done ? (
+            <Button type="button" variant="primary" className="w-full" onClick={onClose}>
+              {t('common.close')}
+            </Button>
+          ) : (
+            <Button type="submit" variant="primary" className="w-full" loading={busy}>
+              {t('auth.submitNewPassword')}
+            </Button>
+          )}
+        </form>
+      ) : forgot ? (
+        <form onSubmit={handleForgottenPassword} className="space-y-4">
+          <p className="text-sm text-slate-500">{t('auth.forgotHint')}</p>
+          <div>
+            <label htmlFor="auth-reset-email" className="mb-1 block text-sm font-medium text-slate-700">
+              {t('auth.email')}
+            </label>
+            <input
+              id="auth-reset-email"
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={done}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:bg-slate-50 disabled:text-slate-500"
+            />
+          </div>
+
+          {error && (
+            <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+          )}
+          {info && (
+            <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{info}</div>
+          )}
+
+          {!done && (
+            <Button type="submit" variant="primary" className="w-full" loading={busy}>
+              {t('auth.submitReset')}
+            </Button>
+          )}
+
+          <button
+            type="button"
+            onClick={backToLogin}
+            className="w-full text-center text-sm text-slate-500 underline hover:text-slate-700"
+          >
+            {t('auth.backToLogin')}
+          </button>
+        </form>
       ) : (
         <div>
           {/* Tabs */}
@@ -216,7 +364,10 @@ export function AuthModal({ open, onClose }: Props) {
           {tab === 'login' && (
             <button
               type="button"
-              onClick={handleForgottenPassword}
+              onClick={() => {
+                resetMessages();
+                setForgot(true);
+              }}
               disabled={busy}
               className="mt-3 text-sm text-slate-500 underline hover:text-slate-700"
             >
@@ -236,6 +387,9 @@ function authErrorKey(err: unknown): string {
   if (msg.includes('already registered')) return 'auth.errAlreadyRegistered';
   if (msg.includes('Password should be')) return 'auth.errPasswordShort';
   if (msg.includes('Email not confirmed')) return 'auth.errEmailNotConfirmed';
+  if (msg.includes('should be different')) return 'auth.errSamePassword';
+  if (msg.includes('Auth session missing') || msg.includes('session_not_found'))
+    return 'auth.errRecoveryExpired';
   if (msg.includes('rate limit') || msg.includes('Too many')) return 'auth.errRateLimit';
   return 'auth.errGeneric';
 }

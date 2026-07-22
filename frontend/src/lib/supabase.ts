@@ -1,4 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+// Трябва да се изпълни ПРЕДИ createClient — клиентът изчиства recovery токена от URL-а.
+import './recovery';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 // New Supabase projects issue "publishable" keys (sb_publishable_...);
