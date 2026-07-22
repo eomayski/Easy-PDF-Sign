@@ -32,7 +32,7 @@ cd helper-agent && npm run dev
 | 0 | ✅ Done | Upload → viewer → draw signature box → appearance config → mock sign → gated download |
 | 1 | ✅ Done | Real PAdES via PKCS#11 local helper agent (smart card, Windows) — signs with PIN, verified against eIDAS validation site |
 | 2 | ❌ Abandoned | Rewarded ads (GAM). Decision: dropped in favor of an account + signature-credit model — see Phase 2´ and `docs/ACCOUNTS.md` |
-| 2´ | 🔨 In progress | Milestone 1 **done & verified E2E**: Supabase Auth (email+parola и Google OAuth), 5 credits при регистрация, атомарен дебит при download, preview + безплатно повторно изтегляне, TTL чистач. Milestone 2 **имплементиран** (2026-07-10): Stripe Checkout — пакет 50 кредита/€2.99, business абонамент €5.99/мес, Customer Portal; чака Stripe ключове + E2E тест. Pending: business stamp upload. See `docs/ACCOUNTS.md` |
+| 2´ | 🔨 In progress | Milestone 1 **done & verified E2E**: Supabase Auth (email+parola и Google OAuth), 5 credits при регистрация, атомарен дебит при download, preview + безплатно повторно изтегляне, TTL чистач. Milestone 2 **имплементиран** (2026-07-10): Stripe Checkout — пакет 50 кредита/€2.99, business абонамент €5.99/мес, Customer Portal; чака Stripe ключове + E2E тест. Възстановяване/смяна на парола (2026-07-22): забравена парола → имейл с линк → модал за нова парола, плюс акаунт меню в хедъра. Pending: business stamp upload. See `docs/ACCOUNTS.md` |
 | 3 | ⏸ On hold | Cloud QES — Evrotrust REST API via `CloudSignerProvider` (deprioritized, not currently planned) |
 | 4 | ⏸ On hold | B-Trust cloud QES (deprioritized, not currently planned) |
 | 5 | 🔲 — | PAdES B-T/B-LT (timestamps), i18n |
@@ -89,6 +89,7 @@ The workflow can also be triggered manually from the Actions tab (without creati
 | Visual signature rendering | `backend/src/services/pdf/visualSignature.ts` |
 | Provider interfaces | `backend/src/services/providers/` |
 | Redux state shape | `frontend/src/store/` |
+| Auth UI (вход, забравена/нова парола, акаунт меню) | `frontend/src/features/auth/` + `frontend/src/lib/recovery.ts` |
 | UI primitives | `frontend/src/components/ui/` |
 | Feature modules | `frontend/src/features/{upload,viewer,signature-box,sign-config,signing,download}/` |
 | Installer download URLs | `frontend/src/lib/detectOS.ts` → `getHelperDownloads()` |

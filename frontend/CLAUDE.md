@@ -36,7 +36,8 @@ store/
                   връщат URL за пълен redirect към Stripe
   upload       { jobId, numPages, fileName }
   signing      { method, status, byteRangeHash, errorMessage }
-  auth         { user: { userId, email, accountType, credits } | null, sessionChecked }
+  auth         { user: { userId, email, accountType, credits } | null, sessionChecked,
+                 syncing, passwordRecovery, hasPasswordIdentity }
 ```
 
 ## Feature modules (`src/features/`)
@@ -49,7 +50,7 @@ store/
 | `signature-box/` | `SignatureBox.tsx` | Konva canvas overlay; draw + resize + drag rectangle |
 | `sign-config/` | `SignConfigStep.tsx`, `HandwrittenSignatureModal.tsx` | Appearance options; signature_pad canvas |
 | `signing/` | `SigningStep.tsx`, `signingSlice.ts` | Method picker; orchestrates prepare → (agent) → complete. Does NOT mint the download token — that moved to DownloadStep (Phase 2´) |
-| `auth/` | `AuthModal.tsx`, `AccountWidget.tsx`, `authSlice.ts`, `useSupabaseSession.ts` | Login/register (email+password + Google OAuth via Supabase), header widget with credit balance (badge opens BillingModal) |
+| `auth/` | `AuthModal.tsx`, `AccountWidget.tsx`, `authSlice.ts`, `useSupabaseSession.ts` | Login/register (email+password + Google OAuth via Supabase), forgotten-password + set-new-password flows, header dropdown menu (email, credits → BillingModal, change password, logout) |
 | `billing/` | `BillingModal.tsx`, `BillingReturnBanner.tsx` | Stripe покупки: modal с пакета (€2.99) и business абонамента (€5.99/мес) → redirect към hosted Checkout; за business — Customer Portal. Банерът чете `?billing=success\|cancelled` при връщането и опреснява баланса със закъснение (webhook-ът начислява кредитите) |
 | `download/` | `DownloadStep.tsx`, `SignedPdfPreview.tsx` | pdf.js canvas preview (always visible); download button calls `requestDownload` (401 → AuthModal, 402 → upsell modal). Token cached in sessionStorage — re-downloads are free |
 
@@ -58,6 +59,9 @@ store/
 Full design in `docs/ACCOUNTS.md`. Implementation notes:
 
 - Supabase client in `src/lib/supabase.ts` (env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`; null-safe when unset). `useSupabaseSession()` (called in `App.tsx`) syncs the Supabase session → `GET /auth/me` → `auth` slice.
+- `AuthModal` has three views in one component: the login/register tabs, an email-only **forgotten password** form (`resetPasswordForEmail` with `redirectTo: window.location.origin` — the origin must be in the Supabase Redirect URLs), and `mode="reset"` — new password + confirmation via `supabase.auth.updateUser({ password })`.
+- The reset view opens automatically when the app is loaded from a recovery link. `src/lib/recovery.ts` reads `type=recovery` from the URL **at import time** (before supabase-js clears it) and exposes `consumeRecoveryFlag()` — one-shot on purpose, otherwise every later sign-in in the same tab would re-open the modal. `useSupabaseSession` also handles the `PASSWORD_RECOVERY` event (implicit links only; PKCE links arrive as `SIGNED_IN`, hence the URL flag).
+- `auth.hasPasswordIdentity` (derived from `session.user.identities`) hides "change password" for Google-only accounts, which have no password to change.
 - Google OAuth does a full-page redirect — the signing flow survives it via `src/lib/flowPersistence.ts` (sessionStorage: step, upload info, placement, visualConfig). This also makes F5 survivable.
 - Payments (Stripe) implemented — see the `billing/` module above. Pending: custom stamp upload for business accounts.
 
