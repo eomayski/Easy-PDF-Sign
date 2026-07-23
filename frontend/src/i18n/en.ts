@@ -25,6 +25,8 @@ export const en: TranslationSchema = {
     onlyPdf: 'PDF files only',
     error: 'Upload failed. Please try again.',
     chooseButton: 'Choose a PDF file',
+    uploading: 'Uploading… {{percent}}%',
+    processing: 'Processing document…',
   },
   viewer: {
     drawHintStrong: 'Draw an area',

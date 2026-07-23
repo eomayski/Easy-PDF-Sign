@@ -3,8 +3,9 @@ import { useDispatch } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { ProgressBar } from '../../components/ui/ProgressBar';
 import { setUploadResult } from './uploadSlice';
-import { useUploadPdfMutation } from '../../store/api';
+import { uploadPdfWithProgress, type UploadProgress } from '../../lib/uploadWithProgress';
 
 interface Props {
   onNext: () => void;
@@ -13,26 +14,29 @@ interface Props {
 export function UploadStep({ onNext }: Props) {
   const { t } = useTranslation();
   const dispatch = useDispatch();
-  const [uploadPdf, { isLoading, error }] = useUploadPdfMutation();
   const [dragOver, setDragOver] = useState(false);
+  const [upload, setUpload] = useState<UploadProgress | null>(null);
+  const [error, setError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const busy = upload !== null;
 
   const handleFile = useCallback(
     async (file: File) => {
       if (!file.type.includes('pdf')) return;
-      const formData = new FormData();
-      formData.append('file', file);
+      setError(false);
+      setUpload({ phase: 'uploading', progress: 0 });
       try {
-        const result = await uploadPdf(formData).unwrap();
+        const result = await uploadPdfWithProgress(file, setUpload);
         dispatch(
           setUploadResult({ jobId: result.jobId, numPages: result.numPages, fileName: file.name }),
         );
         onNext();
       } catch {
-        // error shown below
+        setError(true);
+        setUpload(null);
       }
     },
-    [uploadPdf, dispatch, onNext],
+    [dispatch, onNext],
   );
 
   const onDrop = useCallback(
@@ -63,12 +67,14 @@ export function UploadStep({ onNext }: Props) {
           }}
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
-          onClick={() => inputRef.current?.click()}
+          onClick={() => !busy && inputRef.current?.click()}
           className={[
-            'flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 transition-colors',
-            dragOver
-              ? 'border-brand-500 bg-brand-50'
-              : 'border-slate-200 bg-slate-50 hover:border-brand-400 hover:bg-brand-50/40',
+            'flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 transition-colors',
+            busy
+              ? 'cursor-default border-slate-200 bg-slate-50'
+              : dragOver
+                ? 'cursor-pointer border-brand-500 bg-brand-50'
+                : 'cursor-pointer border-slate-200 bg-slate-50 hover:border-brand-400 hover:bg-brand-50/40',
           ].join(' ')}
         >
           <svg
@@ -101,6 +107,22 @@ export function UploadStep({ onNext }: Props) {
           />
         </div>
 
+        {upload && (
+          <div className="mt-6 text-left">
+            <div className="mb-1.5 flex items-center justify-between text-sm">
+              <span className="font-medium text-slate-600">
+                {upload.phase === 'processing'
+                  ? t('upload.processing')
+                  : t('upload.uploading', { percent: Math.round(upload.progress * 100) })}
+              </span>
+            </div>
+            <ProgressBar
+              value={upload.progress}
+              indeterminate={upload.phase === 'processing'}
+            />
+          </div>
+        )}
+
         {error && (
           <p className="mt-4 rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">
             {t('upload.error')}
@@ -111,7 +133,7 @@ export function UploadStep({ onNext }: Props) {
           variant="primary"
           size="lg"
           className="mt-6 w-full"
-          loading={isLoading}
+          loading={busy}
           onClick={() => inputRef.current?.click()}
         >
           {t('upload.chooseButton')}

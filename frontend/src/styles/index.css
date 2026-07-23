@@ -20,4 +20,18 @@
     scrollbar-width: thin;
     scrollbar-color: theme('colors.slate.300') transparent;
   }
+
+  /* Движещ се блясък върху лентата за прогрес (виж ProgressBar) */
+  @keyframes progress-shimmer {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(100%);
+    }
+  }
+
+  .animate-progress-shimmer {
+    animation: progress-shimmer 1.2s ease-in-out infinite;
+  }
 }

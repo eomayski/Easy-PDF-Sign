@@ -27,6 +27,8 @@ export const bg = {
     onlyPdf: 'Само PDF файлове',
     error: 'Грешка при качването. Моля, опитайте отново.',
     chooseButton: 'Изберете PDF файл',
+    uploading: 'Качване… {{percent}}%',
+    processing: 'Обработка на документа…',
   },
   viewer: {
     drawHintStrong: 'Начертайте зона',

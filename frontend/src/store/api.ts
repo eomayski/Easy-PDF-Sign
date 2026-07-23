@@ -42,13 +42,8 @@ export const api = createApi({
     },
   }),
   endpoints: (builder) => ({
-    uploadPdf: builder.mutation<UploadResponse, FormData>({
-      query: (formData) => ({
-        url: '/upload',
-        method: 'POST',
-        body: formData,
-      }),
-    }),
+    // Качването се прави с XHR (реален прогрес) в lib/uploadWithProgress.ts, не тук —
+    // fetchBaseQuery не докладва upload progress. UploadResponse се преизползва оттам.
     prepareSign: builder.mutation<
       PrepareSignResponse,
       {
@@ -112,7 +107,6 @@ export const api = createApi({
 });
 
 export const {
-  useUploadPdfMutation,
   usePrepareSignMutation,
   useCompleteSignMutation,
   usePollJobQuery,

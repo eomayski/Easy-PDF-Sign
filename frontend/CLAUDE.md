@@ -30,7 +30,8 @@ Routing is react-router-dom (`BrowserRouter` in `main.tsx`): `/` is the landing 
 
 ```
 store/
-  api          RTK Query endpoints (uploadPdf, prepareSign, completeSign, getMe, requestDownload)
+  api          RTK Query endpoints (prepareSign, completeSign, getMe, requestDownload)
+                — upload is NOT here: it uses XHR for real progress (lib/uploadWithProgress.ts)
                 — prepareHeaders attaches the Supabase Bearer token automatically
                 — billing endpoints (purchaseCredits, subscribeBusiness, billingPortal)
                   връщат URL за пълен redirect към Stripe
