@@ -48,6 +48,7 @@ export const bg = {
     textSection: 'Текстово съдържание',
     showName: 'Показвай имената от сертификата (CN)',
     showDate: 'Показвай датата на подписване',
+    dateLabel: 'Дата:',
     freeText: 'Свободен текст',
     freeTextPlaceholder: 'напр. Вярно с оригинала',
     imageSection: 'Изображение / Подпис',

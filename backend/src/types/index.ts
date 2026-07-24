@@ -14,6 +14,8 @@ export interface PdfRect {
 }
 
 export interface VisualSignatureConfig {
+  userTimezone?: string;
+  dateLabel?: string;
   showName: boolean;
   showDate: boolean;
   freeText: string;

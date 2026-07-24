@@ -39,7 +39,16 @@ export function SignConfigStep({ onNext, onBack }: Props) {
   const activeImage = handwrittenDataUrl ?? imageDataUrl;
 
   const handleNext = () => {
-    onNext({ showName, showDate, freeText, imageDataUrl, handwrittenDataUrl, layout });
+    onNext({
+      showName,
+      showDate,
+      freeText,
+      imageDataUrl,
+      handwrittenDataUrl,
+      layout,
+      userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      dateLabel: t('config.dateLabel'),
+    });
   };
 
   return (

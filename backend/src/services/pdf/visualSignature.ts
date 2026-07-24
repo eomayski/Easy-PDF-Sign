@@ -3,6 +3,13 @@ import { PDFDocument, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { getCyrillicFont } from './fonts';
 import type { PdfRect, VisualSignatureConfig, SignatureLayout } from '../../types';
 
+// brand-800 #3730a3 → rgb(55/255, 48/255, 163/255)
+const BRAND_800 = rgb(0.216, 0.188, 0.639);
+
+/**
+ * Draws wrapped text and returns the total height consumed (so the caller
+ * can advance curY by the exact amount used, not just one line).
+ */
 function drawWrappedText(
   page: PDFPage,
   text: string,
@@ -11,7 +18,8 @@ function drawWrappedText(
   font: PDFFont,
   size: number,
   maxWidth: number,
-) {
+  color = rgb(0.1, 0.1, 0.1),
+): number {
   const words = text.split(' ');
   const lines: string[] = [];
   let line = '';
@@ -27,15 +35,34 @@ function drawWrappedText(
   }
   if (line) lines.push(line);
 
+  const lineH = size + 2;
   for (let i = 0; i < lines.length; i++) {
     page.drawText(lines[i], {
       x,
-      y: y - i * (size + 2),
+      y: y - i * lineH,
       size,
       font,
-      color: rgb(0.1, 0.1, 0.1),
+      color,
     });
   }
+  return lines.length * lineH;
+}
+
+function formatSigningDate(timezone: string): string {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZoneName: 'short',
+  }).formatToParts(now);
+
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${get('year')}.${get('month')}.${get('day')} ${get('hour')}:${get('minute')} (${get('timeZoneName')})`;
 }
 
 async function embedBase64Image(
@@ -64,7 +91,7 @@ export async function applyVisualSignature(
 
   const fontBytes = getCyrillicFont();
   const font = await pdfDoc.embedFont(fontBytes);
-  const boldFont = font; // same font; a bold variant would need a separate TTF
+  const boldFont = font;
 
   const page = pdfDoc.getPages()[pageIndex];
   const { x, y, width, height } = rect;
@@ -76,7 +103,7 @@ export async function applyVisualSignature(
     width,
     height,
     color: rgb(0.97, 0.97, 1),
-    borderColor: rgb(0.388, 0.4, 0.945), // brand-500 ≈ #6366f1
+    borderColor: rgb(0.388, 0.4, 0.945),
     borderWidth: 1,
   });
 
@@ -108,23 +135,20 @@ export async function applyVisualSignature(
   if (layout !== 'image-only') {
     const nameSize = Math.max(6, Math.min(9, height / 5));
     const labelSize = Math.max(5, Math.min(7, height / 6));
+    const freeTextSize = Math.max(8, Math.min(11, height / 4));
     let curY = y + height - pad - nameSize;
 
     if (config.showName) {
-      const displayName = signerName ?? 'Подписан от сертификат';
-      drawWrappedText(page, displayName, innerX, curY, boldFont, nameSize, textColumnW);
-      curY -= nameSize + 4;
+      const displayName = signerName ?? 'Signed by certificate';
+      const nameH = drawWrappedText(page, displayName, innerX, curY, boldFont, nameSize, textColumnW);
+      curY -= nameH + 2;
     }
 
     if (config.showDate) {
-      const dateStr = new Date().toLocaleDateString('bg-BG', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-      page.drawText(`Дата: ${dateStr}`, {
+      const tz = config.userTimezone ?? 'UTC';
+      const dateStr = formatSigningDate(tz);
+      const dateLabel = config.dateLabel ?? 'Date:';
+      page.drawText(`${dateLabel} ${dateStr}`, {
         x: innerX,
         y: curY,
         size: labelSize,
@@ -135,7 +159,7 @@ export async function applyVisualSignature(
     }
 
     if (config.freeText) {
-      drawWrappedText(page, config.freeText, innerX, curY, font, nameSize, textColumnW);
+      drawWrappedText(page, config.freeText, innerX, curY, font, freeTextSize, textColumnW, BRAND_800);
     }
   }
 

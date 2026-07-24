@@ -21,6 +21,8 @@ export interface VisualSignatureConfig {
   imageDataUrl: string | null;
   handwrittenDataUrl: string | null;
   layout: SignatureLayout;
+  userTimezone?: string;
+  dateLabel?: string;
 }
 
 export interface SignaturePlacement {

@@ -45,6 +45,7 @@ export const en: TranslationSchema = {
     textSection: 'Text content',
     showName: 'Show the name from the certificate (CN)',
     showDate: 'Show the signing date',
+    dateLabel: 'Date:',
     freeText: 'Free text',
     freeTextPlaceholder: 'e.g. Certified true copy',
     imageSection: 'Image / Signature',
