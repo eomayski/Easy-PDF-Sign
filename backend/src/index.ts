@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import uploadRouter from './routes/upload';
+import jobsRouter from './routes/jobs';
 import filesRouter from './routes/files';
 import signRouter from './routes/sign';
 import authRouter from './routes/auth';
@@ -28,6 +29,7 @@ app.post(
 app.use(express.json({ limit: '10mb' }));
 
 app.use('/api/upload', uploadRouter);
+app.use('/api/jobs', jobsRouter);
 app.use('/api/files', filesRouter);
 app.use('/api/sign', signRouter);
 app.use('/api/auth', authRouter);

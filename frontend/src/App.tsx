@@ -15,6 +15,7 @@ import { AccountWidget } from './features/auth/AccountWidget';
 import { BillingReturnBanner } from './features/billing/BillingReturnBanner';
 import { useSupabaseSession } from './features/auth/useSupabaseSession';
 import { endPasswordRecovery } from './features/auth/authSlice';
+import { useDiscardJobMutation } from './store/api';
 import { resetUpload, setUploadResult } from './features/upload/uploadSlice';
 import { reset as resetSigning } from './features/signing/signingSlice';
 import { clearFlow, loadFlow, loadPendingUpload, saveFlow } from './lib/flowPersistence';
@@ -30,6 +31,7 @@ export function App() {
   const upload = useSelector((s: RootState) => s.upload);
   const passwordRecovery = useSelector((s: RootState) => s.auth.passwordRecovery);
   const { jobId } = upload;
+  const [discardJob] = useDiscardJobMutation();
 
   const navigate = useNavigate();
 
@@ -72,6 +74,15 @@ export function App() {
   }, [step, jobId, upload.numPages, upload.fileName, placement, visualConfig]);
 
   const handleReset = () => {
+    // Напускаме процеса — файловете на сървъра вече не са нужни. Best-effort:
+    // ако заявката не мине, retention sweeper-ът пак ще ги изчисти.
+    if (jobId) {
+      void discardJob(jobId)
+        .unwrap()
+        .catch(() => {
+          /* TTL-ът е резервата */
+        });
+    }
     clearFlow();
     dispatch(resetUpload());
     dispatch(resetSigning());

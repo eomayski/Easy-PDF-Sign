@@ -161,8 +161,10 @@ The interface stays provider-agnostic in case a Bulgarian/EU processor is prefer
 - Whether package credits ever expire (currently: no).
 - ~~Refund/edge-case handling if a download debit succeeds but the stream fails~~ —
   **resolved (2026-07-04):** the download token is reusable while valid; the debit happens
-  once at token issuance and re-downloads are free. Files are kept until the job TTL
-  (1 h after upload) instead of being deleted right after the first download.
+  once at token issuance and re-downloads are free. Files are kept until the job TTL instead
+  of being deleted right after the first download, and issuing the token extends that TTL to
+  at least the token's own lifetime — a file the user has paid a credit for must never be
+  swept while its token is still valid.
 - VAT invoicing requirements for EU consumers (Bulgaria-based seller, EU-wide buyers).
 - Whether anonymous (pre-login) jobs get associated with a user retroactively after they
   log in mid-flow, or whether login must happen before the download page is reached.

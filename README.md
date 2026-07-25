@@ -20,7 +20,7 @@ Browser ──► Backend (Express)          Helper Agent (localhost)
 
 - **The private key never leaves the smart card.** The helper agent only performs `C_Sign` over a SHA-256 hash via PKCS#11 and returns the detached CMS blob. The PIN is entered in an OS dialog and never crosses HTTP.
 - **PAdES is applied server-side** (byte-range hashing requires control over the full PDF byte stream). Signatures validate as `TOTAL-PASSED` against the [EU DSS validator](https://ec.europa.eu/digital-building-blocks/DSS/webapp-demo/validation).
-- **Signing is open, downloading is gated.** Anyone can sign; downloading the result requires an account with signature credits (5 free on signup). Files are deleted from the server at most 1 hour after upload (GDPR).
+- **Signing is open, downloading is gated.** Anyone can sign; downloading the result requires an account with signature credits (5 free on signup). Uploaded files are deleted as soon as you leave the flow, and signed ones 15 minutes after signing (GDPR).
 - **Uploads are free up to 5 MB.** Larger files need an account and cost 1 credit per started 5 MB above that, charged at upload time; 200 MB is the hard cap. See [accounts & credits](docs/ACCOUNTS.md#upload-size-fees).
 
 ## Monorepo

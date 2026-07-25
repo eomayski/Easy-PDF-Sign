@@ -72,6 +72,28 @@ prompt) *before* starting the upload.
 
 ---
 
+## DELETE /jobs/:jobId
+
+Discards a job and its PDFs immediately, instead of waiting for the retention sweeper. The
+frontend calls this when the user leaves the signing flow ("sign another document" / reset),
+so abandoned or finished documents do not sit on disk for the full TTL.
+
+No auth required — the jobId is the capability, exactly as for `GET /files/:jobId`. Anyone
+holding it can already read the document, so being able to delete it grants nothing new.
+
+**Response `204`:** no content. Idempotent — deleting an unknown or already-swept job also
+returns `204`.
+
+### Retention summary
+
+| Job state | Removed when |
+|-----------|--------------|
+| Not signed | User leaves the flow (this endpoint); otherwise `JOB_TTL_MINUTES` (60) after upload |
+| Signed | `SIGNED_JOB_TTL_MINUTES` (15) after **signing** |
+| Signed + download token issued | at least `DOWNLOAD_TOKEN_TTL_SECONDS` after issuance — the credit is already spent, so the file must outlive the token |
+
+---
+
 ## GET /files/:jobId
 
 Streams the original PDF for the viewer. No auth required (jobId acts as token).
@@ -239,8 +261,10 @@ interrupted stream can be retried.
 
 **Response `200`:** `application/pdf` stream with `Content-Disposition: attachment`.
 
-Files are NOT deleted after streaming — a TTL sweeper removes the job and its PDFs
-1 hour after upload (GDPR retention bound).
+Files are NOT deleted after streaming — the token stays reusable. Retention is governed by
+`SIGNED_JOB_TTL_MINUTES` (15 min from signing), extended to at least
+`DOWNLOAD_TOKEN_TTL_SECONDS` once a token has been issued, so a paid-for download can
+always be retried. See `DELETE /jobs/:jobId` below.
 
 **Response `401`:** invalid or expired token.
 **Response `404`:** files cleaned up (job TTL expired).

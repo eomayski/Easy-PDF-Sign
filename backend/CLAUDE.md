@@ -15,6 +15,7 @@ npm test      # vitest run — no DB needed, Prisma is mocked
 | Method | Path | Handler file | What it does |
 |--------|------|--------------|--------------|
 | POST | `/api/upload` | `routes/upload.ts` | Accepts PDF, stores to `UPLOAD_DIR`, returns `{ jobId, numPages, creditsCharged, creditsRemaining }`. Optional auth; files above `FREE_UPLOAD_SIZE_MB` require an account and cost credits — see "Upload size policy" below |
+| DELETE | `/api/jobs/:jobId` | `routes/jobs.ts` | Discards the job + its PDFs immediately when the user leaves the flow. No auth (jobId is the capability, as for `/files/:jobId`); idempotent `204` |
 | GET | `/api/files/:jobId` | `routes/files.ts` | Streams original PDF to the viewer |
 | POST | `/api/sign/prepare` | `routes/sign.ts` | Applies visual layer; for mock: also saves signed PDF; for physical: returns hash |
 | POST | `/api/sign/complete` | `routes/sign.ts` | Embeds CMS from helper-agent (Phase 1, working end-to-end) |
@@ -114,8 +115,30 @@ uploaded → prepared → signed → downloaded
 ```
 
 Files are **not** deleted on download — the download token stays reusable (free
-re-download after an interrupted stream). A sweeper in `store/jobs.ts` deletes the job
-and all its PDFs 1 hour after upload (GDPR retention bound).
+re-download after an interrupted stream).
+
+### Retention
+
+Three mechanisms, in order of who normally wins:
+
+1. **Explicit discard** — `DELETE /api/jobs/:jobId`, fired by the frontend when the user
+   leaves the flow ("sign another document" / reset). This is the primary cleanup for
+   documents that were never signed: they go immediately, not after a TTL.
+2. **Status-dependent TTL** (`store/jobs.ts`) — `JOB_TTL_MINUTES` (60) while unsigned,
+   dropping to `SIGNED_JOB_TTL_MINUTES` (15) the moment the job is signed, counted from
+   signing. `updateJob()` applies the switch centrally, so the three `status: 'signed'`
+   call sites in `routes/sign.ts` don't each have to remember it.
+3. **`extendJob()`** — called from `POST /download/request` with the download token's TTL.
+   ⚠️ Do not remove: the credit is already debited at that point, so the file has been paid
+   for and must outlive the token. Without it a 15-minute file plus a 1-hour token means a
+   retried download 404s on something the user was charged for.
+
+`deleteJob()` unlinks the PDFs as well as dropping the map entry — it used to only do the
+latter, which leaked files.
+
+⚠️ Do **not** wire discard to `beforeunload`/`pagehide` on the frontend: those fire on F5
+and on the Google OAuth full-redirect fallback, which `lib/flowPersistence.ts` exists to
+survive. Abandoned sessions are the TTL's job, not a beacon's.
 
 ## Key env vars
 
@@ -126,6 +149,8 @@ and all its PDFs 1 hour after upload (GDPR retention bound).
 | `FREE_UPLOAD_SIZE_MB` | 5 | Largest free upload; no account needed at or below it |
 | `CREDIT_STEP_SIZE_MB` | 5 | Each started step above the free tier costs 1 credit |
 | `MAX_UPLOAD_SIZE_MB` | 200 | Absolute cap, rejected for everyone regardless of credits |
+| `JOB_TTL_MINUTES` | 60 | Retention for an **unsigned** job (abandoned upload backstop) |
+| `SIGNED_JOB_TTL_MINUTES` | 15 | Retention once signed, counted from signing |
 | `DOWNLOAD_TOKEN_SECRET` | (required) | Use a long random string in prod |
 | `DOWNLOAD_TOKEN_TTL_SECONDS` | 3600 | |
 | `FRONTEND_ORIGIN` | `http://localhost:5173` | CORS allow-list |

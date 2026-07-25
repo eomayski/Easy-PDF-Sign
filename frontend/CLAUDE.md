@@ -30,7 +30,8 @@ Routing is react-router-dom (`BrowserRouter` in `main.tsx`): `/` is the landing 
 
 ```
 store/
-  api          RTK Query endpoints (prepareSign, completeSign, getMe, requestDownload)
+  api          RTK Query endpoints (prepareSign, completeSign, getMe, requestDownload,
+                 discardJob — DELETE /jobs/:id, fired from App.tsx handleReset)
                 — upload is NOT here: it uses XHR for real progress (lib/uploadWithProgress.ts)
                 — prepareHeaders attaches the Supabase Bearer token automatically
                 — billing endpoints (purchaseCredits, subscribeBusiness, billingPortal)

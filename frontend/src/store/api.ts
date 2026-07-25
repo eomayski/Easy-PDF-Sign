@@ -71,6 +71,14 @@ export const api = createApi({
     pollJob: builder.query<{ status: string; ready: boolean }, string>({
       query: (jobId) => `/jobs/${jobId}`,
     }),
+    // Изтрива качените/подписаните файлове веднага, щом потребителят напусне
+    // процеса, вместо да чакат TTL-а. Best-effort — TTL-ът е резервата.
+    discardJob: builder.mutation<void, string>({
+      query: (jobId) => ({
+        url: `/jobs/${jobId}`,
+        method: 'DELETE',
+      }),
+    }),
     getMe: builder.query<MeResponse, void>({
       query: () => '/auth/me',
     }),
@@ -110,6 +118,7 @@ export const {
   usePrepareSignMutation,
   useCompleteSignMutation,
   usePollJobQuery,
+  useDiscardJobMutation,
   useGetMeQuery,
   useRequestDownloadMutation,
   usePurchaseCreditsMutation,

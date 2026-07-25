@@ -1,7 +1,11 @@
 import { Router } from 'express';
 import fs from 'fs';
-import { issueDownloadToken, verifyDownloadToken } from '../services/download/downloadToken';
-import { getJob, updateJob } from '../store/jobs';
+import {
+  downloadTokenTtlMs,
+  issueDownloadToken,
+  verifyDownloadToken,
+} from '../services/download/downloadToken';
+import { extendJob, getJob, updateJob } from '../store/jobs';
 import { requireAuth } from '../middleware/auth';
 import {
   debitCreditForDownload,
@@ -47,6 +51,9 @@ router.post('/request', requireAuth, async (req, res, next) => {
 
     const downloadToken = issueDownloadToken(jobId);
     updateJob(jobId, { downloadToken });
+    // The credit is spent — the file must not be swept while the token the user
+    // paid for is still valid, or a retried download would 404.
+    extendJob(jobId, downloadTokenTtlMs);
     res.json({ downloadToken, creditsRemaining });
   } catch (err) {
     next(err);
