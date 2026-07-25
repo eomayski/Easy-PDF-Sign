@@ -19,7 +19,7 @@ export const en: TranslationSchema = {
   },
   upload: {
     title: 'Upload a PDF document',
-    subtitle: 'Choose a file or drag it here. The file is deleted after download.',
+    subtitle: 'Choose a file or drag it here. The file is removed from the server as soon as you are done.',
     dragHint: 'Drag a PDF here or',
     chooseFileLink: 'choose a file',
     onlyPdf: 'PDF files only',
@@ -129,11 +129,11 @@ export const en: TranslationSchema = {
   },
   download: {
     title: 'Document signed!',
-    subtitle: 'Review the result and download the file. It is deleted from the server after download.',
+    subtitle: 'Review the result and download the file. It is removed from the server shortly afterwards.',
     loginPrompt:
       'To download the signed document you need to sign in to your account. New accounts get <b>5 free credits</b>.',
     downloaded:
-      'The document was downloaded. If something went wrong with the file, you can download it again for free until you close this page (up to 1 hour after upload).',
+      'The document was downloaded. If something went wrong with the file, you can download it again for free while this page stays open.',
     requestError: 'The download request failed. Please try again.',
     btnAgain: 'Download again (free)',
     btnLoggingIn: 'Signing in...',

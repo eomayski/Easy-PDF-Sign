@@ -4,8 +4,9 @@ import type { SignaturePlacement, VisualSignatureConfig } from '../types';
  * Persists the signing-flow state across full page reloads — needed because
  * the Google OAuth login redirects away and back, which would otherwise drop
  * the user to step 0 and lose the signed document. (Also makes F5 survivable;
- * the backend keeps the job for 1 hour.) sessionStorage: per-tab, cleared on
- * tab close.
+ * the backend keeps an unsigned job for JOB_TTL_MINUTES and a signed one only
+ * SIGNED_JOB_TTL_MINUTES — see backend/src/store/jobs.ts.) sessionStorage:
+ * per-tab, cleared on tab close.
  */
 
 const KEY = 'easy-pdf-sign-flow';
