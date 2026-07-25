@@ -154,6 +154,10 @@ export const en: TranslationSchema = {
     notConfigured: 'Sign-in is not configured (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).',
     bonus: 'New accounts get <b>5 free credits</b> for downloading signed documents.',
     google: 'Continue with Google',
+    tabOpened:
+      'We opened a new tab for the Google sign-in. Finish it there — this page will carry on by itself.',
+    tabSigningIn: 'Signing in…',
+    tabDone: 'Done. You can close this tab.',
     orEmail: 'or with email',
     email: 'Email',
     password: 'Password',

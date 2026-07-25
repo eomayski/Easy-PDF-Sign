@@ -63,7 +63,33 @@ Full design in `docs/ACCOUNTS.md`. Implementation notes:
 - `AuthModal` has three views in one component: the login/register tabs, an email-only **forgotten password** form (`resetPasswordForEmail` with `redirectTo: window.location.origin` — the origin must be in the Supabase Redirect URLs), and `mode="reset"` — new password + confirmation via `supabase.auth.updateUser({ password })`.
 - The reset view opens automatically when the app is loaded from a recovery link. `src/lib/recovery.ts` reads `type=recovery` from the URL **at import time** (before supabase-js clears it) and exposes `consumeRecoveryFlag()` — one-shot on purpose, otherwise every later sign-in in the same tab would re-open the modal. `useSupabaseSession` also handles the `PASSWORD_RECOVERY` event (implicit links only; PKCE links arrive as `SIGNED_IN`, hence the URL flag).
 - `auth.hasPasswordIdentity` (derived from `session.user.identities`) hides "change password" for Google-only accounts, which have no password to change.
-- Google OAuth does a full-page redirect — the signing flow survives it via `src/lib/flowPersistence.ts` (sessionStorage: step, upload info, placement, visualConfig). This also makes F5 survivable.
+- **Google OAuth runs in a separate tab** (`src/lib/oauthTab.ts`), so the current page is never
+  torn down and in-memory state (notably a chosen `File`) survives. Google's consent screen
+  refuses to be framed, so a top-level navigation somewhere is unavoidable — a second tab is where
+  it does no damage. Mechanics:
+  - `openBlankAuthTab()` must be called **synchronously in the click handler**, before any
+    `await` — otherwise the popup blocker kills it. Tabs and popups go through the *same* blocker;
+    what matters is the user activation, not the window type. No window features are passed, so
+    the browser makes a tab (on mobile it would be a tab regardless).
+  - `signInWithOAuth({ skipBrowserRedirect: true })` returns the URL, which is then assigned to
+    the new tab.
+  - Nothing needs to be posted back: supabase-js keeps a `BroadcastChannel` named after its
+    `storageKey` and re-emits auth events to every tab of the origin, so `useSupabaseSession` in
+    the original tab receives `SIGNED_IN` on its own.
+  - The auth tab identifies itself with a **per-tab `sessionStorage` marker** written while it is
+    still `about:blank`. `window.name` is only a fallback because browsers clear it on
+    cross-origin navigation (Chrome 88+, anti-tracking). `window.opener` is deliberately *not*
+    used: a site opened via `target="_blank"` has a non-null opener, and on the redirect fallback
+    that would make us close the user's main tab.
+  - `main.tsx` short-circuits before rendering React when it detects that tab: it waits for the
+    session, then `window.close()`. On timeout/denial it renders the app normally so no blank tab
+    is left behind.
+  - If `window.open` returns `null` (blocker, or an in-app webview such as Facebook's, where the
+    opened context may not even share storage), it falls back to the old full-page redirect, and
+    `src/lib/flowPersistence.ts` restores the flow (sessionStorage: step, upload info, placement,
+    visualConfig). That path also makes F5 survivable.
+  - `redirectTo` stays at the bare origin on purpose — a path would also have to be in the
+    Supabase Redirect URLs allow-list.
 - Payments (Stripe) implemented — see the `billing/` module above. Pending: custom stamp upload for business accounts.
 
 ## Upload size policy
@@ -80,11 +106,12 @@ screen, `UploadStep` keeps the `File` in state and also stores its name/size via
 - **Email+password** (no reload) — the `File` is still in memory, so the upload **starts
   automatically** once the session lands. The price was already shown before login, so there is
   no second confirmation.
-- **Google OAuth** (full reload) — a `File` cannot survive a reload, so only the intent is
-  restored: `App.tsx` navigates back to `/sign` when a pending upload exists (instead of leaving
-  the user on the landing page), and `UploadStep` shows a "you're signed in, pick «name» again"
-  panel with the quoted cost. `redirectTo` deliberately stays at the bare origin — adding a path
-  would require it in the Supabase Redirect URLs allow-list.
+- **Google OAuth** — runs in a **separate tab** (`src/lib/oauthTab.ts`) precisely so this page is
+  never torn down and the `File` survives; the same auto-continue then applies. See below.
+- **Google OAuth fallback** (tab blocked → full reload) — a `File` cannot survive a reload, so
+  only the intent is restored: `App.tsx` navigates back to `/sign` when a pending upload exists
+  (instead of leaving the user on the landing page), and `UploadStep` shows a "you're signed in,
+  pick «name» again" panel with the quoted cost.
 
 `src/lib/uploadWithProgress.ts` attaches the Supabase bearer token (files above the free tier
 are charged, so the upload must be attributable) and rejects with an `UploadError` carrying the

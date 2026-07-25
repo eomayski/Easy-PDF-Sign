@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { Trans, useTranslation } from 'react-i18next';
+import type { RootState } from '../../store';
 import { Modal } from '../../components/ui/Modal';
 import { Button } from '../../components/ui/Button';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
+import { openBlankAuthTab } from '../../lib/oauthTab';
 
 interface Props {
   open: boolean;
@@ -16,6 +19,7 @@ export type Mode = 'auth' | 'reset';
 
 export function AuthModal({ open, onClose, mode = 'auth' }: Props) {
   const { t } = useTranslation();
+  const user = useSelector((s: RootState) => s.auth.user);
   const [tab, setTab] = useState<Tab>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,6 +46,13 @@ export function AuthModal({ open, onClose, mode = 'auth' }: Props) {
     setError(null);
     setInfo(null);
   }, [open, mode]);
+
+  // Вписването с Google завършва в другия таб — сесията идва през
+  // BroadcastChannel, така че затваряме модала сами. Само в режим 'auth':
+  // 'reset' се ползва точно от вписан потребител.
+  useEffect(() => {
+    if (open && mode === 'auth' && user) onClose();
+  }, [open, mode, user, onClose]);
 
   const backToLogin = () => {
     setForgot(false);
@@ -103,19 +114,37 @@ export function AuthModal({ open, onClose, mode = 'auth' }: Props) {
   const handleGoogleLogin = async () => {
     if (!supabase) return;
     resetMessages();
+
+    // Отваряме таба ПРЕДИ първия await — потребителският жест още е активен.
+    // След await блокерът спира отварянето (важи и за таб, и за попъп).
+    const authTab = openBlankAuthTab();
     setBusy(true);
+
     try {
-      // Redirects the whole page to Google and back; the flow (including a
-      // file that was waiting for login) is preserved via sessionStorage and
-      // App.tsx navigates back into /sign — see lib/flowPersistence.ts.
-      // Keep redirectTo at the bare origin: adding a path would have to be in
-      // the Supabase Redirect URLs allow-list too.
-      const { error: err } = await supabase.auth.signInWithOAuth({
+      // redirectTo остава bare origin — път би трябвало да е и в Supabase
+      // Redirect URLs allow-list-а.
+      const { data, error: err } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.origin },
+        options: {
+          redirectTo: window.location.origin,
+          // Само при отделен таб; иначе оставяме библиотеката да пренасочи.
+          skipBrowserRedirect: authTab !== null,
+        },
       });
       if (err) throw err;
+
+      if (authTab) {
+        if (!data?.url) throw new Error('Missing OAuth redirect URL');
+        // Вписването продължава в другия таб; този остава жив, за да не се
+        // загуби избраният файл. Сесията идва през BroadcastChannel.
+        authTab.location.href = data.url;
+        setInfo(t('auth.tabOpened'));
+        setBusy(false);
+      }
+      // Без таб (блокиран / in-app браузър) signInWithOAuth вече пренасочва
+      // цялата страница — flowPersistence поема възстановяването.
     } catch (err) {
+      authTab?.close();
       setError(t(authErrorKey(err)));
       setBusy(false);
     }
