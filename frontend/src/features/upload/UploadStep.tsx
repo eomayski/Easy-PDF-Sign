@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useTranslation } from 'react-i18next';
 import type { RootState } from '../../store';
@@ -9,6 +9,11 @@ import { BillingModal } from '../billing/BillingModal';
 import { setCredits } from '../auth/authSlice';
 import { setUploadResult } from './uploadSlice';
 import { dateLocale } from '../../i18n';
+import {
+  clearPendingUpload,
+  loadPendingUpload,
+  savePendingUpload,
+} from '../../lib/flowPersistence';
 import {
   MAX_UPLOAD_BYTES,
   FREE_UPLOAD_BYTES,
@@ -38,11 +43,41 @@ export function UploadStep({ onNext, onRequireLogin }: Props) {
   const [errorKey, setErrorKey] = useState<string | null>(null);
   const [shortfall, setShortfall] = useState<{ required: number; available: number } | null>(null);
   const [showUpsell, setShowUpsell] = useState(false);
+  /** true докато чакаме вход, поискан от панела за голям файл — след входа продължаваме сами */
+  const [awaitingLogin, setAwaitingLogin] = useState(false);
+  /**
+   * Избор на файл, оцелял след пълно презареждане (Google OAuth). Самият File
+   * не може да се запази, затова само подсещаме потребителя да го избере пак.
+   */
+  const [resumed, setResumed] = useState(() => loadPendingUpload());
   const inputRef = useRef<HTMLInputElement>(null);
   const busy = upload !== null;
 
   const size = (bytes: number) => formatBytes(bytes, dateLocale());
   const cost = (credits: number) => t('upload.creditCount', { count: credits });
+
+  /**
+   * Изпраща потребителя към входа, без да губи избора му: запазва файла в
+   * state (за вход без презареждане) и метаданните в sessionStorage (за
+   * Google OAuth, който презарежда цялата страница).
+   */
+  const requestLoginFor = useCallback(
+    (file: File) => {
+      savePendingUpload(file.name, file.size);
+      setPending(file);
+      setAwaitingLogin(true);
+      onRequireLogin();
+    },
+    [onRequireLogin],
+  );
+
+  /** Отказ от голям файл — нулира и чакането за вход, за да не тръгне по-късно. */
+  const cancelPending = useCallback(() => {
+    setPending(null);
+    setResumed(null);
+    setAwaitingLogin(false);
+    clearPendingUpload();
+  }, []);
 
   const startUpload = useCallback(
     async (file: File) => {
@@ -64,7 +99,8 @@ export function UploadStep({ onNext, onRequireLogin }: Props) {
         if (err instanceof UploadError) {
           switch (err.code) {
             case 'FILE_TOO_LARGE_LOGIN_REQUIRED':
-              onRequireLogin();
+              // Сървърът има по-строг лимит от клиентското копие на политиката.
+              requestLoginFor(file);
               return;
             case 'INSUFFICIENT_CREDITS':
               setShortfall({ required: err.required ?? 0, available: err.available ?? 0 });
@@ -77,8 +113,19 @@ export function UploadStep({ onNext, onRequireLogin }: Props) {
         setErrorKey('upload.error');
       }
     },
-    [dispatch, onNext, onRequireLogin],
+    [dispatch, onNext, requestLoginFor],
   );
+
+  // Влизането в акаунт не бива да прекъсва процеса: щом сесията е готова,
+  // продължаваме с вече избрания файл. Цената беше показана в панела преди
+  // входа, така че не питаме втори път.
+  useEffect(() => {
+    if (!awaitingLogin || !user || !pending) return;
+    setAwaitingLogin(false);
+    setResumed(null);
+    clearPendingUpload();
+    void startUpload(pending);
+  }, [awaitingLogin, user, pending, startUpload]);
 
   // Файловете до безплатния лимит тръгват веднага; над него първо показваме
   // цената (или искаме вход), за да не чака цяло качване напразно.
@@ -87,6 +134,8 @@ export function UploadStep({ onNext, onRequireLogin }: Props) {
       if (!file.type.includes('pdf')) return;
       setErrorKey(null);
       setShortfall(null);
+      setResumed(null);
+      clearPendingUpload();
       if (file.size > MAX_UPLOAD_BYTES) {
         setPending(null);
         setErrorKey('upload.errHardCap');
@@ -176,6 +225,28 @@ export function UploadStep({ onNext, onRequireLogin }: Props) {
           />
         </div>
 
+        {/* След Google OAuth: файлът е загубен при презареждането, но помним кой беше */}
+        {resumed && user && !pending && !busy && (
+          <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-left">
+            <p className="text-sm font-medium text-emerald-900">{t('upload.resumeTitle')}</p>
+            <p className="mt-1.5 text-sm text-emerald-800">
+              {t('upload.resumeBody', {
+                name: resumed.fileName,
+                size: size(resumed.fileSize),
+                cost: cost(creditsForSize(resumed.fileSize)),
+              })}
+            </p>
+            <div className="mt-3 flex gap-2">
+              <Button variant="primary" size="sm" onClick={() => inputRef.current?.click()}>
+                {t('upload.resumePick')}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={cancelPending}>
+                {t('upload.cancelPending')}
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Файл над безплатния лимит — цена или покана за вход, преди качването */}
         {pending && (
           <div className="mt-6 rounded-xl border border-brand-200 bg-brand-50 px-4 py-4 text-left">
@@ -201,7 +272,7 @@ export function UploadStep({ onNext, onRequireLogin }: Props) {
                       ? t('upload.confirmUploadBusiness')
                       : t('upload.confirmUpload', { cost: cost(pendingCredits) })}
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setPending(null)}>
+                  <Button variant="ghost" size="sm" onClick={cancelPending}>
                     {t('upload.cancelPending')}
                   </Button>
                 </div>
@@ -215,10 +286,10 @@ export function UploadStep({ onNext, onRequireLogin }: Props) {
                   })}
                 </p>
                 <div className="mt-3 flex gap-2">
-                  <Button variant="primary" size="sm" onClick={onRequireLogin}>
+                  <Button variant="primary" size="sm" onClick={() => requestLoginFor(pending)}>
                     {t('upload.loginCta')}
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setPending(null)}>
+                  <Button variant="ghost" size="sm" onClick={cancelPending}>
                     {t('upload.cancelPending')}
                   </Button>
                 </div>

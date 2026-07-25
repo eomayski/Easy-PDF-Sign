@@ -105,8 +105,11 @@ export function AuthModal({ open, onClose, mode = 'auth' }: Props) {
     resetMessages();
     setBusy(true);
     try {
-      // Redirects the whole page to Google and back; the signing flow is
-      // preserved via sessionStorage (see lib/flowPersistence.ts).
+      // Redirects the whole page to Google and back; the flow (including a
+      // file that was waiting for login) is preserved via sessionStorage and
+      // App.tsx navigates back into /sign — see lib/flowPersistence.ts.
+      // Keep redirectTo at the bare origin: adding a path would have to be in
+      // the Supabase Redirect URLs allow-list too.
       const { error: err } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: window.location.origin },

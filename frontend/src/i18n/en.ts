@@ -40,6 +40,10 @@ export const en: TranslationSchema = {
     loginRequiredBody:
       'This file is above the free {{free}} limit. Larger files need an account — uploading costs {{cost}}.',
     loginCta: 'Sign in / Register',
+    resumeTitle: "You're signed in — let's continue.",
+    resumeBody:
+      'Pick “{{name}}” ({{size}}) again to continue the upload — it costs {{cost}}. Browsers cannot keep a selected file across a page reload.',
+    resumePick: 'Choose the file',
     errHardCap: 'This file is too large. The maximum allowed size is {{max}}.',
     errInsufficient: 'This file needs {{required}}, but you have {{available}}.',
     buyCredits: 'Buy credits',

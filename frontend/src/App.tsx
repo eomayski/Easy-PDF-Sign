@@ -17,7 +17,7 @@ import { useSupabaseSession } from './features/auth/useSupabaseSession';
 import { endPasswordRecovery } from './features/auth/authSlice';
 import { resetUpload, setUploadResult } from './features/upload/uploadSlice';
 import { reset as resetSigning } from './features/signing/signingSlice';
-import { clearFlow, loadFlow, saveFlow } from './lib/flowPersistence';
+import { clearFlow, loadFlow, loadPendingUpload, saveFlow } from './lib/flowPersistence';
 import type { RootState } from './store';
 import type { SignaturePlacement, VisualSignatureConfig } from './types';
 
@@ -35,6 +35,8 @@ export function App() {
 
   // Restore the flow after a full page reload (e.g. the Google OAuth redirect)
   const [restored] = useState(() => loadFlow());
+  // No job yet, but a file was waiting for login when we redirected away
+  const [pendingUpload] = useState(() => loadPendingUpload());
   const [step, setStep] = useState(restored?.step ?? 0);
   const [placement, setPlacement] = useState<SignaturePlacement | null>(
     restored?.placement ?? null,
@@ -48,6 +50,10 @@ export function App() {
     if (restored) {
       dispatch(setUploadResult(restored.upload));
       // При възстановен flow (OAuth redirect / F5 на "/") влизаме директно в него.
+      navigate('/sign', { replace: true });
+    } else if (pendingUpload) {
+      // Върнахме се от Google OAuth с чакащ голям файл (още няма job) —
+      // продължаваме в процеса вместо да оставим потребителя на landing-а.
       navigate('/sign', { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

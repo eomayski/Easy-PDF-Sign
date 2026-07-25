@@ -73,6 +73,19 @@ Full design in `docs/ACCOUNTS.md`. Implementation notes:
 defaults 5/5/200). It exists **only** to quote the cost before the upload starts — the backend
 re-checks and is the authority. Keep the two in sync when the defaults change.
 
+**Login must not interrupt the upload.** When an oversized file sends the user to the login
+screen, `UploadStep` keeps the `File` in state and also stores its name/size via
+`savePendingUpload()` (`lib/flowPersistence.ts`, 30 min TTL):
+
+- **Email+password** (no reload) — the `File` is still in memory, so the upload **starts
+  automatically** once the session lands. The price was already shown before login, so there is
+  no second confirmation.
+- **Google OAuth** (full reload) — a `File` cannot survive a reload, so only the intent is
+  restored: `App.tsx` navigates back to `/sign` when a pending upload exists (instead of leaving
+  the user on the landing page), and `UploadStep` shows a "you're signed in, pick «name» again"
+  panel with the quoted cost. `redirectTo` deliberately stays at the bare origin — adding a path
+  would require it in the Supabase Redirect URLs allow-list.
+
 `src/lib/uploadWithProgress.ts` attaches the Supabase bearer token (files above the free tier
 are charged, so the upload must be attributable) and rejects with an `UploadError` carrying the
 structured `code` from the API (`FILE_TOO_LARGE_LOGIN_REQUIRED` → AuthModal,
