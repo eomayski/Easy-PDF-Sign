@@ -4,6 +4,7 @@ release/
 .env
 *.local
 uploads/
+.test-uploads/
 backend/public/downloads/*.exe
 backend/public/downloads/*.deb
 backend/public/downloads/*.rpm

@@ -42,6 +42,7 @@ cd helper-agent && npm run dev
 Replaces the ad-gated download model from Phase 0. Full design in `docs/ACCOUNTS.md`; summary:
 
 - **Signing stays open; downloading is gated.** Anyone can upload and run `/sign/prepare` / `/sign/complete` without an account. The download page always renders a preview of the signed PDF. The **download itself** requires the user to be logged in **and** to hold at least 1 signature credit (or hold a business subscription).
+- **Uploads are free up to 5 MB; larger files require an account and cost credits** — 1 credit per started 5 MB above the free tier, debited **at upload time** (the disk/processing cost is incurred there), separate from and additional to the download debit. Hard cap 200 MB for everyone. All three thresholds are env-configurable. See `docs/ACCOUNTS.md` → "Upload size fees".
 - **Credit debit happens at download time, not at sign time** — 1 credit is debited per signed document, at download-token issuance (`POST /download/request`). Re-downloads with the same token are free (retry after an interrupted stream); files live max 1 h after upload (TTL sweeper).
 - **New accounts start with 5 free credits.**
 - **Paid packages:** 50 credits for €2.99, one-time purchase, credits do not expire.
@@ -81,6 +82,7 @@ The workflow can also be triggered manually from the Actions tab (without creati
 | What | Where |
 |------|-------|
 | Signing flow details | `docs/SIGNING_FLOW.md` |
+| Upload size tiers & credit formula | `backend/src/config/uploadPolicy.ts` + `docs/ACCOUNTS.md` |
 | Accounts, credits & billing plan | `docs/ACCOUNTS.md` |
 | Deployment plan (Railway / Vercel / Supabase) | `docs/DEPLOYMENT.md` |
 | Viewport→PDF coordinate transform | `frontend/src/lib/coords.ts` |

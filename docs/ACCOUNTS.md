@@ -15,13 +15,58 @@ user accounts and a signature-credit balance instead of an ad watch.
 
 ## Core rule
 
-Signing stays free and open to everyone — no account is required to upload a PDF, place
-a signature box, configure its appearance, or run `/sign/prepare` / `/sign/complete`.
-The download page always renders a **preview** of the signed PDF regardless of auth state.
+Signing stays free and open to everyone — no account is required to upload a PDF (up to the
+free size tier, see below), place a signature box, configure its appearance, or run
+`/sign/prepare` / `/sign/complete`. The download page always renders a **preview** of the
+signed PDF regardless of auth state.
 
 Only the **download** of the final signed PDF is gated, on two conditions:
 1. The user is logged in.
 2. The user has at least 1 signature credit available (or holds an active business subscription).
+
+The one exception to "uploading is free" is **file size** — see the next section.
+
+## Upload size fees
+
+Large files cost real disk and processing, and that cost is incurred at **upload** time — so
+unlike the download credit, the size fee is charged there.
+
+| File size | Account | Cost |
+|-----------|---------|------|
+| ≤ `FREE_UPLOAD_SIZE_MB` (default 5 MB) | not required | free — unchanged behaviour |
+| > 5 MB, ≤ `MAX_UPLOAD_SIZE_MB` (default 200 MB) | **required** | 1 credit per started `CREDIT_STEP_SIZE_MB` (default 5 MB) above the free tier |
+| > `MAX_UPLOAD_SIZE_MB` | — | rejected for everyone, an abuse valve |
+
+```
+creditsRequired = size <= FREE ? 0 : ceil((size - FREE) / STEP)
+```
+
+Examples with the defaults: 5 MB → 0 · 5 MB + 1 B → 1 · 6 MB → 1 · 10 MB → 1 ·
+10 MB + 1 B → 2 · 23 MB → 4.
+
+- The size fee is **additional to and separate from** the download debit: a 12 MB document
+  costs 2 credits to upload plus 1 credit to download. Both come out of the same balance.
+- **Business subscriptions pay no size fee**, matching the existing "unlimited signatures"
+  rule — `hasActiveBusinessSubscription()` skips the debit exactly as it does for downloads.
+  The hard cap still applies to them.
+- Recorded in the ledger as `upload_size_fee`, so users can tell it apart from
+  `download_debit` in their history.
+
+### Atomicity and refunds
+
+The balance check, the decrement and the ledger row are one Prisma transaction, using the same
+conditional `credits >= n` update as `debitCreditForDownload()` — two parallel uploads cannot
+both spend the same credit.
+
+Jobs still live in memory (`backend/src/store/jobs.ts`), so the debit and the upload
+registration cannot literally share one transaction. Instead the pair is completed by
+compensation: if anything after the debit fails (PDF parsing, job creation), the credits are
+returned with an `upload_size_refund` ledger row, the temp file is unlinked, and the refund is
+logged. A failed upload therefore never burns credits.
+
+Configured entirely by env (`FREE_UPLOAD_SIZE_MB`, `CREDIT_STEP_SIZE_MB`,
+`MAX_UPLOAD_SIZE_MB`), mirrored to the browser as `VITE_*` so the UI can quote the price
+before the upload starts. Error codes are in `docs/API.md` under `POST /upload`.
 
 ## Account types
 
@@ -74,9 +119,11 @@ User {
 CreditTransaction {
   id
   userId
-  delta: number        // +5 signup bonus, +50 package purchase, -1 download debit
-  reason: "signup_bonus" | "package_purchase" | "download_debit" | "refund"
-  jobId?: string        // for download_debit
+  delta: number        // +5 signup bonus, +50 package purchase, -1 download debit,
+                       // -N upload size fee, +N its refund
+  reason: "signup_bonus" | "package_purchase" | "download_debit"
+        | "upload_size_fee" | "upload_size_refund" | "refund"
+  jobId?: string        // for download_debit, upload_size_fee, upload_size_refund
   createdAt
 }
 ```

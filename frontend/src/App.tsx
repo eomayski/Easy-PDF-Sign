@@ -121,7 +121,12 @@ export function App() {
                   </div>
                 )}
 
-                {step === 0 && <UploadStep onNext={() => setStep(1)} />}
+                {step === 0 && (
+                  <UploadStep
+                    onNext={() => setStep(1)}
+                    onRequireLogin={() => setAuthModalOpen(true)}
+                  />
+                )}
 
                 {step === 1 && (
                   <ViewerStep

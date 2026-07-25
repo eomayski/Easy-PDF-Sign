@@ -32,9 +32,9 @@ model CreditTransaction {
   id        String   @id @default(uuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id])
-  delta     Int // +5 signup bonus, +50 package purchase, -1 download debit
-  reason    String // "signup_bonus" | "package_purchase" | "download_debit" | "refund"
-  jobId     String? // for download_debit
+  delta     Int // +5 signup bonus, +50 package purchase, -1 download debit, -N upload size fee
+  reason    String // "signup_bonus" | "package_purchase" | "download_debit" | "upload_size_fee" | "upload_size_refund" | "refund"
+  jobId     String? // for download_debit, upload_size_fee, upload_size_refund
   // Stripe webhook event id for package purchases — the unique constraint is
   // what makes webhook retries idempotent (second insert fails with P2002).
   stripeEventId String? @unique

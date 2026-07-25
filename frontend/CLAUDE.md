@@ -46,7 +46,7 @@ store/
 | Directory | Key files | Responsibility |
 |-----------|-----------|----------------|
 | `landing/` | `LandingPage.tsx`, `landing.css` | Marketing landing: hero with animated ink stroke, pinned scroll section replaying the 5 steps as HTML mock-ups, pricing, CTA. Copy lives in the `landing.*` i18n keys |
-| `upload/` | `UploadStep.tsx`, `uploadSlice.ts` | Drag-drop or browse; POST to /api/upload |
+| `upload/` | `UploadStep.tsx`, `uploadSlice.ts` | Drag-drop or browse; POST to /api/upload with a real progress bar. Files above the free size tier are quoted (credit cost) or prompted for login **before** the upload starts — see "Upload size policy" below |
 | `viewer/` | `PdfViewer.tsx`, `ViewerStep.tsx` | pdf.js rendering; page navigation |
 | `signature-box/` | `SignatureBox.tsx` | Konva canvas overlay; draw + resize + drag rectangle |
 | `sign-config/` | `SignConfigStep.tsx`, `HandwrittenSignatureModal.tsx` | Appearance options; signature_pad canvas |
@@ -65,6 +65,19 @@ Full design in `docs/ACCOUNTS.md`. Implementation notes:
 - `auth.hasPasswordIdentity` (derived from `session.user.identities`) hides "change password" for Google-only accounts, which have no password to change.
 - Google OAuth does a full-page redirect — the signing flow survives it via `src/lib/flowPersistence.ts` (sessionStorage: step, upload info, placement, visualConfig). This also makes F5 survivable.
 - Payments (Stripe) implemented — see the `billing/` module above. Pending: custom stamp upload for business accounts.
+
+## Upload size policy
+
+`src/lib/uploadPolicy.ts` mirrors `backend/src/config/uploadPolicy.ts` (env:
+`VITE_FREE_UPLOAD_SIZE_MB`, `VITE_CREDIT_STEP_SIZE_MB`, `VITE_MAX_UPLOAD_SIZE_MB`; same
+defaults 5/5/200). It exists **only** to quote the cost before the upload starts — the backend
+re-checks and is the authority. Keep the two in sync when the defaults change.
+
+`src/lib/uploadWithProgress.ts` attaches the Supabase bearer token (files above the free tier
+are charged, so the upload must be attributable) and rejects with an `UploadError` carrying the
+structured `code` from the API (`FILE_TOO_LARGE_LOGIN_REQUIRED` → AuthModal,
+`INSUFFICIENT_CREDITS` → BillingModal upsell with `required`/`available`,
+`FILE_EXCEEDS_HARD_CAP` → inline error). Full contract in `docs/API.md`.
 
 ## Coordinate system — important
 

@@ -7,13 +7,14 @@ Express + TypeScript server. Handles PDF upload, visual signature rendering, sig
 ```bash
 npm run dev   # ts-node-dev, port 4000
 npm run build # tsc → dist/
+npm test      # vitest run — no DB needed, Prisma is mocked
 ```
 
 ## Route map
 
 | Method | Path | Handler file | What it does |
 |--------|------|--------------|--------------|
-| POST | `/api/upload` | `routes/upload.ts` | Accepts PDF, stores to `UPLOAD_DIR`, returns `{ jobId, numPages }` |
+| POST | `/api/upload` | `routes/upload.ts` | Accepts PDF, stores to `UPLOAD_DIR`, returns `{ jobId, numPages, creditsCharged, creditsRemaining }`. Optional auth; files above `FREE_UPLOAD_SIZE_MB` require an account and cost credits — see "Upload size policy" below |
 | GET | `/api/files/:jobId` | `routes/files.ts` | Streams original PDF to the viewer |
 | POST | `/api/sign/prepare` | `routes/sign.ts` | Applies visual layer; for mock: also saves signed PDF; for physical: returns hash |
 | POST | `/api/sign/complete` | `routes/sign.ts` | Embeds CMS from helper-agent (Phase 1, working end-to-end) |
@@ -33,9 +34,32 @@ npm run build # tsc → dist/
 
 `middleware/auth.ts` → `requireAuth` verifies the Supabase JWT from `Authorization: Bearer`
 (JWKS via `SUPABASE_URL`, HS256 fallback via `SUPABASE_JWT_SECRET`) and sets `req.auth =
-{ userId, email }`. `services/users.ts` owns user provisioning (`ensureUser`, idempotent
-signup bonus) and the atomic credit debit (`debitCreditForDownload` — conditional
-`updateMany` with `credits >= 1`, so parallel downloads can't double-spend).
+{ userId, email }`. `optionalAuth` does the same verification but never rejects — used by
+`/api/upload`, where small files stay anonymous and only oversized ones need an account.
+`services/users.ts` owns user provisioning (`ensureUser`, idempotent signup bonus) and the
+atomic credit operations (`debitCreditForDownload`, `debitCreditsForUploadSize`,
+`refundUploadSizeFee` — conditional `updateMany` with `credits >= n`, so parallel requests
+can't double-spend).
+
+### Upload size policy
+
+`config/uploadPolicy.ts` owns the tiers: free up to `FREE_UPLOAD_SIZE_MB`, then 1 credit per
+started `CREDIT_STEP_SIZE_MB`, hard-capped at `MAX_UPLOAD_SIZE_MB`. `creditsForSize()` is the
+pure function; env is read lazily so tests can stub it. Full rules and the formula are in
+`docs/ACCOUNTS.md` → "Upload size fees"; error codes in `docs/API.md`.
+
+Two enforcement layers in `routes/upload.ts`: a `Content-Length` pre-flight that rejects
+before the body is buffered (with `MULTIPART_OVERHEAD_ALLOWANCE` slack so a file *at* the
+threshold is never wrongly refused), then `receiveSinglePdf()` in `middleware/upload.ts`,
+which builds a multer instance **per request** because the limit depends on auth.
+
+⚠️ multer/busboy treats `limits.fileSize` as **exclusive** — a file of exactly `fileSize`
+bytes is rejected. `receiveSinglePdf()` takes an *inclusive* max and adds the +1 itself; don't
+"simplify" that away or "up to 5 MB" breaks at exactly 5 MB.
+
+The size fee is charged at upload time (unlike the download debit) and refunded via
+`upload_size_refund` if anything after the debit fails — jobs are in-memory, so the debit and
+the upload can't share one transaction.
 
 Users/credits live in Postgres via Prisma (`prisma/schema.prisma`, client singleton in
 `src/db/prisma.ts`). Jobs are still in-memory (`store/jobs.ts`).
@@ -99,6 +123,9 @@ and all its PDFs 1 hour after upload (GDPR retention bound).
 |-----|---------|-------|
 | `PORT` | 4000 | |
 | `UPLOAD_DIR` | `./uploads` | Auto-created on startup |
+| `FREE_UPLOAD_SIZE_MB` | 5 | Largest free upload; no account needed at or below it |
+| `CREDIT_STEP_SIZE_MB` | 5 | Each started step above the free tier costs 1 credit |
+| `MAX_UPLOAD_SIZE_MB` | 200 | Absolute cap, rejected for everyone regardless of credits |
 | `DOWNLOAD_TOKEN_SECRET` | (required) | Use a long random string in prod |
 | `DOWNLOAD_TOKEN_TTL_SECONDS` | 3600 | |
 | `FRONTEND_ORIGIN` | `http://localhost:5173` | CORS allow-list |

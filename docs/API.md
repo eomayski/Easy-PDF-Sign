@@ -11,11 +11,64 @@ All request/response bodies are JSON unless noted.
 Uploads a PDF file.
 
 **Request:** `multipart/form-data`, field name `file`.
+**Auth:** optional — `Authorization: Bearer <supabase-jwt>`. Required only for files above
+the free size tier (see below).
 
 **Response `200`:**
 ```json
-{ "jobId": "uuid", "numPages": 5 }
+{ "jobId": "uuid", "numPages": 5, "creditsCharged": 0, "creditsRemaining": null }
 ```
+
+`creditsCharged` is the size fee actually debited (`0` for free-tier files and for business
+subscriptions); `creditsRemaining` is the balance after the debit, or `null` when nothing was
+charged.
+
+### Size tiers
+
+| File size | Account | Cost |
+|-----------|---------|------|
+| ≤ `FREE_UPLOAD_SIZE_MB` (5 MB) | not required | free |
+| > 5 MB, ≤ `MAX_UPLOAD_SIZE_MB` (200 MB) | **required** | 1 credit per started `CREDIT_STEP_SIZE_MB` (5 MB) above the free tier |
+| > 200 MB | — | rejected for everyone |
+
+```
+creditsRequired = size <= FREE ? 0 : ceil((size - FREE) / STEP)
+```
+
+With the defaults: 5 MB → 0, 5 MB + 1 B → 1, 10 MB → 1, 10 MB + 1 B → 2, 23 MB → 4.
+
+Business accounts with an active subscription pay **no** size fee (same rule as the download
+debit), but the hard cap still applies.
+
+The fee is debited **at upload time**, not at download — the disk and processing cost is
+incurred here. It is *additional to* and separate from the 1-credit download debit in
+`POST /download/request`, and comes out of the same balance. The ledger records it as
+`upload_size_fee` (and `upload_size_refund` on rollback) so it is distinguishable from
+`download_debit` in the user's history.
+
+The debit and the ledger row are written in one Prisma transaction, guarded by a conditional
+`credits >= n` update so parallel uploads cannot overdraw. If anything fails **after** the
+debit (PDF parsing, job registration), the credits are refunded in the error path and the
+refund is logged.
+
+### Errors
+
+| Status | `code` | Meaning | Extra fields |
+|--------|--------|---------|--------------|
+| `401` | `FILE_TOO_LARGE_LOGIN_REQUIRED` | Anonymous request for a file above the free tier | `freeBytes` |
+| `402` | `INSUFFICIENT_CREDITS` | Authenticated, but the balance is too low | `required`, `available` |
+| `413` | `FILE_EXCEEDS_HARD_CAP` | Above `MAX_UPLOAD_SIZE_MB`, regardless of auth or credits | `maxBytes` |
+| `400` | — | No file in the request | |
+
+```json
+{ "error": "Not enough credits for a file of this size",
+  "code": "INSUFFICIENT_CREDITS", "required": 4, "available": 1 }
+```
+
+Enforcement is layered: a `Content-Length` pre-flight rejects oversized requests before the
+body is buffered, and multer's per-request `fileSize` limit is the authoritative check on the
+actual bytes. The frontend additionally checks the size locally and shows the cost (or a login
+prompt) *before* starting the upload.
 
 ---
 
