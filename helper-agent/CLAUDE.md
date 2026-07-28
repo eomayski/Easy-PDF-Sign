@@ -55,6 +55,14 @@ Nothing else hardcodes it:
 - `/health` reads it via `require('../package.json')` — works in dev, in `dist/` and inside the pkg snapshot (`pkg.config.json` ships `package.json` as an asset).
 - The frontend's `LATEST_HELPER_VERSION` is injected by `vite.config.ts` (`define: __HELPER_VERSION__`) by reading this same file; if it is unreachable at build time it falls back to `0.0.0`, which silently disables the "update available" banner rather than showing a wrong version.
 - `.deb` / `.rpm` metadata already read it with `node -p`.
+- The NSIS installer gets it as `/DVERSION=` from `installer/windows/build-installer.js` (→ `VIProductVersion` + the `DisplayVersion` registry value).
+
+**Upgrades must stop the running agent first — on every platform.** The symptom is always the same and misleading: signing still works, but `/health` reports the old version and the site keeps showing the "update available" banner.
+- **Windows:** the install section starts with `schtasks /end` + `taskkill /F /IM`. Without it NSIS fails with "error opening file for writing" on the locked exe, and a user who clicks Ignore keeps the *old* binary.
+- **Linux:** `postinstall.sh` does `enable` + `restart`, and `pkill`s any instance systemd does not own (the xdg autostart entry starts one too — it would survive the restart and keep port 17357, so the new binary could never bind). `preuninstall.sh` deliberately does nothing on upgrade, only on real removal.
+- **macOS:** `scripts/preinstall` boots the LaunchAgent out, `scripts/postinstall` bootstraps + kickstarts it.
+
+Only Windows can fail the *install* itself — on POSIX the package manager replaces the binary by rename, which is legal for a running executable.
 
 Workflow: `.github/workflows/build-helper-agent.yml`
 - `windows-2022` runner → `easy-pdf-sign-helper-setup.exe` (NSIS installer, no admin/UAC needed)
@@ -64,7 +72,7 @@ Workflow: `.github/workflows/build-helper-agent.yml`
 **Key build details:**
 - Runtime: Node 22 (pkg target `node22-*`) — required because Node 22's bundled node-gyp supports VS 2022 on the `windows-2022` runner. Do not switch to `windows-latest` (has VS 2026 which causes node-gyp buffer overflow).
 - `pkg.config.json` bundles `pkcs11js/build/Release/pkcs11.node` as an asset.
-- Linux packages use `fpm` — all flags must come before the positional source argument (`.`).
+- Linux packages use `fpm` — all flags must come before the positional source argument (`.`). CI builds both `.deb` and `.rpm` through `build-packages.sh`; `build-deb.sh` / `build-rpm.sh` are the fpm-free local-dev equivalents. All three reuse the same `postinstall.sh` / `preuninstall.sh`, and `build-rpm.sh` **generates** the spec (version from `package.json`, scriptlets inlined) — there is deliberately no checked-in `.spec`, because the one that existed drifted out of sync.
 - The bundled `pkcs11.node` is **architecture-specific** — never build a `--target …-x64` binary on an arm64 runner (an x86_64 process cannot dlopen an arm64 addon). `build-pkg.sh` verifies each slice with `lipo -archs` and fails the build on a mismatch.
 - Only artifacts named `easy-pdf-sign-helper-*` are published as Release assets; the intermediate `mac-binary-*` slices deliberately are not — a bare Mach-O with no extension opens as a text file for the user.
 

@@ -12,11 +12,24 @@
 !define TASK_NAME "EasyPDFSignHelper"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\EasyPDFSignHelper"
 
+; Passed by build-installer.js from package.json — never edit the version here.
+!ifndef VERSION
+  !define VERSION "0.0.0"
+!endif
+
 Name "${APP_NAME}"
 OutFile "..\..\release\easy-pdf-sign-helper-setup.exe"
 InstallDir "$LOCALAPPDATA\EasyPDFSignHelper"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
+
+VIProductVersion "${VERSION}.0"
+VIAddVersionKey "ProductName" "${APP_NAME}"
+VIAddVersionKey "FileDescription" "${APP_NAME} Setup"
+VIAddVersionKey "FileVersion" "${VERSION}"
+VIAddVersionKey "ProductVersion" "${VERSION}"
+VIAddVersionKey "CompanyName" "Easy PDF Sign"
+VIAddVersionKey "LegalCopyright" "Easy PDF Sign"
 
 !define MUI_ABORTWARNING
 
@@ -30,6 +43,14 @@ SetCompressor /SOLID lzma
 !insertmacro MUI_LANGUAGE "Bulgarian"
 
 Section "Install"
+  ; On an upgrade the previous agent is still running and holds the exe open,
+  ; which made NSIS fail with "error opening file for writing" — and if the
+  ; user chose Ignore, the old binary survived and kept reporting the old
+  ; version to /health. Stop it before writing anything.
+  nsExec::ExecToLog 'schtasks /end /tn "${TASK_NAME}"'
+  nsExec::ExecToLog 'taskkill /F /IM "${APP_EXE}"'
+  Sleep 1000
+
   SetOutPath "$INSTDIR"
   File "..\..\release\${APP_EXE}"
   File "run-hidden.vbs"
@@ -43,6 +64,7 @@ Section "Install"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayName" "${APP_NAME}"
+  WriteRegStr HKCU "${UNINST_KEY}" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "${UNINST_KEY}" "UninstallString" "$INSTDIR\Uninstall.exe"
   WriteRegStr HKCU "${UNINST_KEY}" "InstallLocation" "$INSTDIR"
   WriteRegStr HKCU "${UNINST_KEY}" "Publisher" "Easy PDF Sign"

@@ -35,6 +35,16 @@ for _uid in $UIDS; do
   _user="$(id -nu "$_uid" 2>/dev/null)" || continue
   user_systemctl "$_uid" "$_user" daemon-reload
   user_systemctl "$_uid" "$_user" enable easy-pdf-sign-helper.service
+
+  # Kill instances systemd does not own before restarting. The xdg autostart
+  # entry starts the agent too, and such a process survives 'systemctl restart'
+  # while holding 127.0.0.1:17357 — the freshly installed binary then loses the
+  # bind and the browser keeps talking to the OLD version.
+  if command -v pkill >/dev/null 2>&1; then
+    pkill -u "$_uid" -f '/usr/local/bin/easy-pdf-sign-helper' 2>/dev/null || true
+    sleep 1   # let the port be released before systemd binds it
+  fi
+
   user_systemctl "$_uid" "$_user" restart easy-pdf-sign-helper.service
 done
 

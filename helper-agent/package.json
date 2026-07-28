@@ -1,13 +1,13 @@
 {
   "name": "easy-pdf-sign-helper-agent",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Local PKCS#11 signing agent for Easy PDF Sign (Phase 1)",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "build:win": "npm run build && pkg dist/index.js --target node22-win-x64 --output release/easy-pdf-sign-helper.exe --config pkg.config.json",
-    "build:win-installer": "npm run build:win && makensis installer/windows/installer.nsi",
+    "build:win-installer": "npm run build:win && node installer/windows/build-installer.js",
     "build:linux": "npm run build && pkg dist/index.js --target node22-linux-x64 --output release/easy-pdf-sign-helper-linux --config pkg.config.json",
     "build:linux-rpm": "npm run build:linux && bash installer/linux/build-rpm.sh",
     "build:linux-deb": "npm run build:linux && bash installer/linux/build-deb.sh",
