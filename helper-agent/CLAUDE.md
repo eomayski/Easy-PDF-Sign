@@ -45,9 +45,16 @@ Installers are built by GitHub Actions and published as GitHub Release assets. *
 
 **To release:**
 ```bash
-git tag helper-agent-v0.x.0
-git push origin helper-agent-v0.x.0
+npm version 0.x.0 --no-git-tag-version   # in helper-agent/ — the only place to bump
+git commit -am "chore(helper): v0.x.0" && git tag helper-agent-v0.x.0
+git push origin main helper-agent-v0.x.0
 ```
+
+**`helper-agent/package.json` is the single source of truth for the version.**
+Nothing else hardcodes it:
+- `/health` reads it via `require('../package.json')` — works in dev, in `dist/` and inside the pkg snapshot (`pkg.config.json` ships `package.json` as an asset).
+- The frontend's `LATEST_HELPER_VERSION` is injected by `vite.config.ts` (`define: __HELPER_VERSION__`) by reading this same file; if it is unreachable at build time it falls back to `0.0.0`, which silently disables the "update available" banner rather than showing a wrong version.
+- `.deb` / `.rpm` metadata already read it with `node -p`.
 
 Workflow: `.github/workflows/build-helper-agent.yml`
 - `windows-2022` runner → `easy-pdf-sign-helper-setup.exe` (NSIS installer, no admin/UAC needed)

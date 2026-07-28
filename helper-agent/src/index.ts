@@ -27,6 +27,12 @@ import { isPkcs11Available, listCertificates, signHash } from './pkcs11Signer';
 
 const PORT = parseInt(process.env.AGENT_PORT ?? '17357', 10);
 
+// Single source of truth for the version: package.json. Works in dev (src/),
+// after tsc (dist/) and inside the pkg snapshot alike — the file sits one level
+// above the entry point in all three, and pkg.config.json ships it as an asset.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { version: AGENT_VERSION } = require('../package.json') as { version: string };
+
 // Production site + local dev. APP_ORIGIN (comma-separated) overrides.
 const DEFAULT_ORIGINS = [
   'https://pdf-easy.online',
@@ -45,7 +51,7 @@ app.use(express.json());
 
 app.get('/health', (_req, res) => {
   const pkcs11 = isPkcs11Available();
-  res.json({ ok: true, version: '0.2.3', pkcs11: pkcs11 ? 'available' : 'unavailable' });
+  res.json({ ok: true, version: AGENT_VERSION, pkcs11: pkcs11 ? 'available' : 'unavailable' });
 });
 
 // ─── Certificates ────────────────────────────────────────────────────────────

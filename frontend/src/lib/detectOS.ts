@@ -17,11 +17,12 @@ export function detectOS(): DetectedOS {
 }
 
 /**
- * Най-новата версия на helper agent-а (същата като helper-agent/package.json).
- * Бумп-ва се при всеки release — SigningStep я сравнява с /health.version,
- * за да покаже банер „налична е нова версия“.
+ * Най-новата версия на helper agent-а. Не се пише на ръка — идва директно от
+ * `helper-agent/package.json` през `define` във `vite.config.ts`, така че бумп
+ * на версията там е достатъчен. SigningStep я сравнява с `/health.version`, за
+ * да покаже банер „налична е нова версия“.
  */
-export const LATEST_HELPER_VERSION = '0.2.3';
+export const LATEST_HELPER_VERSION: string = __HELPER_VERSION__;
 
 /** true ако версия a е по-стара от b (напр. '0.2.0' < '0.2.2') */
 export function isOlderVersion(a: string, b: string): boolean {

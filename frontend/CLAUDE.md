@@ -162,6 +162,10 @@ Defined in `tailwind.config.ts`. Key tokens:
 
 Download URLs point to GitHub Releases (`releases/latest/download/`), not to the backend's `/downloads/` route. To update the URLs, edit the `RELEASES_BASE` constant in `detectOS.ts`.
 
+`LATEST_HELPER_VERSION` (used for the "new version available" banner) is **not** hardcoded — `vite.config.ts` reads `helper-agent/package.json` at build time and injects it as `__HELPER_VERSION__` (declared in `src/vite-env.d.ts`). Bump the version only in `helper-agent/package.json`. If that file is unreachable during the build, the fallback `0.0.0` disables the banner instead of showing a stale version.
+
+macOS ships an unsigned `.pkg` installer, so `getHelperDownloadHint('macos')` adds a Gatekeeper note ("right-click → Open") under the download button.
+
 ## Physical signing (Phase 1 — complete)
 
 The physical flow is fully working end-to-end in `SigningStep.tsx` (cert picker modal, agent calls, complete sign). It is gated by `agentStatus === 'available'` — the button is disabled until the helper agent's `/health` responds.
