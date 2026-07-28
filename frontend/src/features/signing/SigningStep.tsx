@@ -9,7 +9,13 @@ import { Modal } from '../../components/ui/Modal';
 import { setMethod, setStatus, setError } from './signingSlice';
 import { usePrepareSignMutation, useCompleteSignMutation } from '../../store/api';
 import { viewportToPdfRect } from '../../lib/coords';
-import { detectOS, getHelperDownloads, isOlderVersion, LATEST_HELPER_VERSION } from '../../lib/detectOS';
+import {
+  detectOS,
+  getHelperDownloads,
+  getHelperDownloadHint,
+  isOlderVersion,
+  LATEST_HELPER_VERSION,
+} from '../../lib/detectOS';
 import { dateLocale } from '../../i18n';
 import type { SigningMethod, SignaturePlacement, VisualSignatureConfig } from '../../types';
 import type { CertInfo } from './types';
@@ -354,17 +360,22 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
 
 function HelperDownloadLinks() {
   const { t } = useTranslation();
+  const os = detectOS();
+  const hintKey = getHelperDownloadHint(os);
   return (
-    <div className="flex flex-wrap gap-2">
-      {getHelperDownloads(detectOS()).map((dl) => (
-        <a
-          key={dl.url}
-          href={dl.url}
-          className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
-        >
-          ↓ {t(dl.labelKey)}
-        </a>
-      ))}
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {getHelperDownloads(os).map((dl) => (
+          <a
+            key={dl.url}
+            href={dl.url}
+            className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700"
+          >
+            ↓ {t(dl.labelKey)}
+          </a>
+        ))}
+      </div>
+      {hintKey && <p className="text-xs text-slate-500">{t(hintKey)}</p>}
     </div>
   );
 }

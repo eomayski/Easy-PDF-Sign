@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Template — build-pkg.sh substitutes @VERSION@ before calling productbuild. -->
+<installer-gui-script minSpecVersion="2">
+  <title>Easy PDF Sign Helper</title>
+  <organization>bg.easypdfsign</organization>
+
+  <welcome file="welcome.html" mime-type="text/html"/>
+  <conclusion file="conclusion.html" mime-type="text/html"/>
+
+  <!-- No component selection: a single small agent, nothing to customize. -->
+  <options customize="never" require-scripts="false" hostArchitectures="arm64,x86_64"/>
+
+  <!-- System-wide only: the LaunchAgent plist goes to /Library/LaunchAgents so
+       every user of the Mac gets the agent at login. -->
+  <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/>
+
+  <volume-check>
+    <allowed-os-versions>
+      <os-version min="11.0"/>
+    </allowed-os-versions>
+  </volume-check>
+
+  <choices-outline>
+    <line choice="default"/>
+  </choices-outline>
+
+  <choice id="default" title="Easy PDF Sign Helper">
+    <pkg-ref id="bg.easypdfsign.helper"/>
+  </choice>
+
+  <pkg-ref id="bg.easypdfsign.helper" version="@VERSION@" onConclusion="none">component.pkg</pkg-ref>
+</installer-gui-script>

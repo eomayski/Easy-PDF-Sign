@@ -122,10 +122,12 @@ export const en: TranslationSchema = {
   },
   helper: {
     dlWindows: 'Download for Windows (.exe)',
-    dlMac: 'Download for macOS',
+    dlMac: 'Download for macOS (.pkg)',
     dlRpm: 'Download for Fedora/RHEL (.rpm)',
     dlDeb: 'Download for Debian/Ubuntu (.deb)',
     dlGeneric: 'Download Easy PDF Sign Helper',
+    macGatekeeperHint:
+      'On macOS: right-click the downloaded .pkg → “Open” and confirm. A plain double-click may be blocked by the system.',
   },
   download: {
     title: 'Document signed!',

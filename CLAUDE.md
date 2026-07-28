@@ -73,7 +73,7 @@ git tag helper-agent-v0.x.0
 git push origin helper-agent-v0.x.0
 ```
 
-The workflow (`.github/workflows/build-helper-agent.yml`) runs three parallel jobs — `windows-2022`, `ubuntu-latest`, `macos-latest` — and uploads the artifacts as GitHub Release assets. Installer download URLs in `frontend/src/lib/detectOS.ts` point directly to `github.com/eomayski/Easy-PDF-Sign/releases/latest/download/`.
+The workflow (`.github/workflows/build-helper-agent.yml`) builds on `windows-2022` (NSIS `.exe`), `ubuntu-latest` (`.deb` + `.rpm`) and two macOS runners — `macos-latest` (arm64) and `macos-15-intel` (x86_64), whose binaries a follow-up job merges into a single `.pkg` — then uploads the installers as GitHub Release assets. Installer download URLs in `frontend/src/lib/detectOS.ts` point directly to `github.com/eomayski/Easy-PDF-Sign/releases/latest/download/`.
 
 The workflow can also be triggered manually from the Actions tab (without creating a tag) to produce build artifacts without a public release.
 

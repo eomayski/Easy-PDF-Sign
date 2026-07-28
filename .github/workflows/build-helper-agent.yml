@@ -1,8 +1,10 @@
 name: Build helper-agent
 
-# Native PKCS#11 addon must be compiled on the OS it will run on — pkg cannot
-# cross-compile native modules. This matrix runs each build on its own real OS.
-# Node version must match the pkg target (node18) so pkcs11js ABI aligns.
+# Native PKCS#11 addon must be compiled on the OS *and architecture* it will run
+# on — pkg cannot cross-compile native modules. Every build therefore runs on a
+# matching runner; macOS needs two (Apple Silicon + Intel) whose outputs are
+# merged into one .pkg. Node version must match the pkg target (node22) so the
+# pkcs11js ABI aligns.
 on:
   workflow_dispatch:
   push:
@@ -17,9 +19,6 @@ jobs:
           - os: windows-2022
             script: build:win-installer
             artifact: easy-pdf-sign-helper-setup.exe
-          - os: macos-latest
-            script: build:mac
-            artifact: easy-pdf-sign-helper-macos
           - os: ubuntu-latest
             script: build:linux-packages
             artifact: easy-pdf-sign-helper-linux-packages
@@ -68,15 +67,79 @@ jobs:
             helper-agent/release/easy-pdf-sign-helper.rpm
             helper-agent/release/easy-pdf-sign-helper.deb
 
+  # macOS is split in two: one binary per architecture, each compiled on a host
+  # of that architecture (the bundled pkcs11 native addon cannot be
+  # cross-compiled), then a third job assembles both into a single .pkg.
+  build-mac-binaries:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest      # Apple Silicon
+            arch: arm64
+          - os: macos-15-intel    # last x86_64 image GitHub offers (until autumn 2027)
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: helper-agent
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build binary
+        run: npm run build:mac-${{ matrix.arch }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-binary-${{ matrix.arch }}
+          path: helper-agent/release/easy-pdf-sign-helper-macos-${{ matrix.arch }}
+
+  build-mac-pkg:
+    needs: build-mac-binaries
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: helper-agent
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Artifacts arrive without the exec bit — build-pkg.sh chmods the payload.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mac-binary-*
+          merge-multiple: true
+          path: helper-agent/release
+
+      - name: Build .pkg installer
+        run: npm run build:mac-pkg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: easy-pdf-sign-helper-pkg
+          path: helper-agent/release/easy-pdf-sign-helper.pkg
+
   release:
-    needs: build
+    needs: [build, build-mac-pkg]
     if: startsWith(github.ref, 'refs/tags/helper-agent-v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      # Only the installer artifacts — the intermediate `mac-binary-*` slices
+      # must not be published: a bare Mach-O opens as a text file in Finder.
       - uses: actions/download-artifact@v4
         with:
+          pattern: easy-pdf-sign-helper-*
           path: artifacts
       - uses: softprops/action-gh-release@v2
         with:

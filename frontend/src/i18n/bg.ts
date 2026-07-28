@@ -125,10 +125,12 @@ export const bg = {
   },
   helper: {
     dlWindows: 'Изтегли за Windows (.exe)',
-    dlMac: 'Изтегли за macOS',
+    dlMac: 'Изтегли за macOS (.pkg)',
     dlRpm: 'Изтегли за Fedora/RHEL (.rpm)',
     dlDeb: 'Изтегли за Debian/Ubuntu (.deb)',
     dlGeneric: 'Изтегли Easy PDF Sign Helper',
+    macGatekeeperHint:
+      'На macOS: отворете изтегления .pkg с десен бутон → „Отвори“ и потвърдете. При двойно кликане системата може да откаже да го стартира.',
   },
   download: {
     title: 'Документът е подписан!',

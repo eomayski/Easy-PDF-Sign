@@ -52,12 +52,30 @@ git push origin helper-agent-v0.x.0
 Workflow: `.github/workflows/build-helper-agent.yml`
 - `windows-2022` runner → `easy-pdf-sign-helper-setup.exe` (NSIS installer, no admin/UAC needed)
 - `ubuntu-latest` runner → `easy-pdf-sign-helper.deb` + `easy-pdf-sign-helper.rpm`
-- `macos-latest` runner → `easy-pdf-sign-helper-macos`
+- `macos-latest` (arm64) + `macos-15-intel` (x86_64) → one binary each → assembled by a third job into `easy-pdf-sign-helper.pkg`
 
 **Key build details:**
 - Runtime: Node 22 (pkg target `node22-*`) — required because Node 22's bundled node-gyp supports VS 2022 on the `windows-2022` runner. Do not switch to `windows-latest` (has VS 2026 which causes node-gyp buffer overflow).
 - `pkg.config.json` bundles `pkcs11js/build/Release/pkcs11.node` as an asset.
 - Linux packages use `fpm` — all flags must come before the positional source argument (`.`).
+- The bundled `pkcs11.node` is **architecture-specific** — never build a `--target …-x64` binary on an arm64 runner (an x86_64 process cannot dlopen an arm64 addon). `build-pkg.sh` verifies each slice with `lipo -archs` and fails the build on a mismatch.
+- Only artifacts named `easy-pdf-sign-helper-*` are published as Release assets; the intermediate `mac-binary-*` slices deliberately are not — a bare Mach-O with no extension opens as a text file for the user.
+
+## macOS installer (`installer/macos/`)
+
+`.pkg` built with `pkgbuild` + `productbuild` (`npm run build:mac-pkg`, after `build:mac-arm64` / `build:mac-x64`). Installs system-wide (admin password prompt):
+
+| Path | What |
+|------|------|
+| `/usr/local/libexec/easy-pdf-sign-helper/easy-pdf-sign-helper-{arm64,x64}` | both arch slices |
+| `/usr/local/bin/easy-pdf-sign-helper` | `launcher.sh` — execs the slice matching `uname -m` |
+| `/usr/local/bin/easy-pdf-sign-helper-uninstall` | `sudo` uninstaller |
+| `/Library/LaunchAgents/bg.easypdfsign.helper.plist` | starts the agent at every user's login |
+
+- Two separate binaries, not one universal file: pkg appends its payload **after** the Mach-O, so `lipo` cannot fuse them.
+- LaunchAgent, not LaunchDaemon — the PIN prompt is an `osascript` dialog and needs the user's GUI session.
+- `scripts/preinstall` stops the running agent (upgrade), `scripts/postinstall` bootstraps it for the console user so no logout/reboot is needed. Both must `exit 0` or Installer.app reports failure.
+- **Unsigned / not notarized.** Gatekeeper makes the user right-click → Open (the frontend shows this hint — `helper.macGatekeeperHint`). Removing that friction needs an Apple Developer ID ($99/yr) + `productsign` + `notarytool`.
 
 ## Local dev
 

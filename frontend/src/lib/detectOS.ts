@@ -41,6 +41,16 @@ export interface HelperDownload {
   url: string;
 }
 
+/**
+ * i18n ключ с бележка под линковете за дадена ОС (или null).
+ * macOS: инсталаторът не е нотаризиран (нужен е Apple Developer ID), затова
+ * Gatekeeper блокира двойното кликане — потребителят трябва да го отвори с
+ * десен бутон → „Отвори“.
+ */
+export function getHelperDownloadHint(os: DetectedOS): string | null {
+  return os === 'macos' ? 'helper.macGatekeeperHint' : null;
+}
+
 const RELEASES_BASE = 'https://github.com/eomayski/Easy-PDF-Sign/releases/latest/download';
 
 export function getHelperDownload(os: DetectedOS): HelperDownload {
@@ -48,7 +58,7 @@ export function getHelperDownload(os: DetectedOS): HelperDownload {
     case 'windows':
       return { labelKey: 'helper.dlWindows', url: `${RELEASES_BASE}/easy-pdf-sign-helper-setup.exe` };
     case 'macos':
-      return { labelKey: 'helper.dlMac', url: `${RELEASES_BASE}/easy-pdf-sign-helper-macos` };
+      return { labelKey: 'helper.dlMac', url: `${RELEASES_BASE}/easy-pdf-sign-helper.pkg` };
     case 'linux':
       return { labelKey: 'helper.dlDeb', url: `${RELEASES_BASE}/easy-pdf-sign-helper.deb` };
     default:
