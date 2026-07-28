@@ -8,11 +8,34 @@ Local native process (Node.js, packaged with `@yao-pkg/pkg`) that gives the brow
 
 Browsers cannot call PKCS#11 directly. The private key must never leave the card. This agent acts as a thin bridge: it receives a SHA-256 hash from the browser, passes it to the card for signing via PKCS#11, and returns the detached CMS blob. The key stays on the card.
 
+## Loopback TLS (Safari)
+
+Safari is the only browser that treats `http://127.0.0.1` from an HTTPS page as mixed content and blocks it ([WebKit 171934](https://bugs.webkit.org/show_bug.cgi?id=171934), open since 2017) — Chrome, Edge and Firefox all allow loopback. So the agent listens **twice**: HTTP on 17357 (unchanged, every browser) and HTTPS on 17358 (macOS only, or `AGENT_TLS=1` elsewhere for testing).
+
+`src/tls.ts` generates the chain **on the user's machine**, driven by the `openssl` CLI through real config files (`-addext` does not exist in the LibreSSL macOS ships) into `~/Library/Application Support/EasyPDFSign/tls/`:
+
+| File | Lifetime | Notes |
+|------|----------|-------|
+| `ca.pem` / `ca.key` (0600) | 10 years | `nameConstraints` **critical**: `DNS:localhost` + `IP:127.0.0.1` only |
+| `server.pem` / `server.key` | 800 days | SAN `DNS:localhost,IP:127.0.0.1`, EKU `serverAuth` |
+
+Three decisions worth keeping:
+
+- **The CA key is kept, not destroyed.** Apple caps server certificates from admin-added roots at 825 days (the newer 398-day rule [does not apply to admin-added roots](https://support.apple.com/en-us/102028); the older 825-day one does). Keeping the key lets the agent re-issue the leaf — it re-checks daily and swaps it in with `setSecureContext()`, so no reinstall and no second trip to the keychain. Name constraints are what make holding that key acceptable: it can only ever sign for localhost.
+- **`::1` is deliberately absent** from both the constraints and the SAN. The agent binds `127.0.0.1` only, and IPv6 name-constraint syntax is the part of openssl most likely to vary between builds.
+- **TLS failure is never fatal.** Any error just logs and leaves HTTP serving — which covers every browser except Safari.
+
+`--init-tls` generates the material and prints the CA path; `installer/macos/scripts/postinstall` runs it as the console user (`sudo -H -u`) and feeds the path to `security add-trusted-cert -d -r trustRoot -p ssl -k /Library/Keychains/System.keychain`. `launcher.sh` skips its log redirection for this one flag, otherwise the path would end up in the log file instead of the installer's stdout.
+
+`uninstall.sh` must remove the root — a trusted CA left behind is the one genuinely harmful leftover. It calls `security remove-trusted-cert -d` (needs the file, so *before* deleting the material) and then loops `security delete-certificate -c "Easy PDF Sign Local CA" -t /Library/Keychains/System.keychain` (positional keychain — `delete-certificate` has no `-k`).
+
+**Known limitation:** on a multi-user Mac only the account that ran the installer gets Safari support — the CA is machine-wide but the material is per-user. Other accounts fall back to HTTP, i.e. Chrome/Edge/Firefox.
+
 ## HTTP API
 
 | Method | Path | Request | Response |
 |--------|------|---------|----------|
-| GET | `/health` | — | `{ ok, version, pkcs11 }` |
+| GET | `/health` | — | `{ ok, version, pkcs11, tls: { enabled, expires } }` |
 | GET | `/certificates` | — | `CertInfo[]` |
 | POST | `/sign` | `{ hash: string (hex), certId: string }` | `{ cms: string (hex) }` |
 

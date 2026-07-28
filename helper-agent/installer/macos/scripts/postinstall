@@ -30,6 +30,34 @@ CONSOLE_UID="$(id -u "$CONSOLE_USER" 2>/dev/null)" || {
 }
 say "console user: $CONSOLE_USER (uid $CONSOLE_UID)"
 
+# ─── TLS for Safari ──────────────────────────────────────────────────────────
+# Safari is the only browser that blocks http://127.0.0.1 from an HTTPS page,
+# so the agent also serves HTTPS on 17358. The certificate is generated here,
+# on this machine, and its CA is trusted machine-wide. The CA is name-
+# constrained to localhost/127.0.0.1, so it cannot vouch for anything else.
+# -H so the agent resolves the *user's* home, not root's.
+CA_PATH="$(sudo -H -u "$CONSOLE_USER" /usr/local/bin/easy-pdf-sign-helper --init-tls 2>&1 | tail -1)"
+
+if [ -f "$CA_PATH" ]; then
+  # Drop stale copies first: reinstalling would otherwise stack duplicate roots
+  # in the keychain, and an old CA whose key is gone is pure liability.
+  i=0
+  while [ "$i" -lt 10 ] && security delete-certificate -c "Easy PDF Sign Local CA" -t \
+          /Library/Keychains/System.keychain >/dev/null 2>&1; do
+    i=$((i + 1))
+  done
+  [ "$i" -gt 0 ] && say "removed $i stale CA copies from the keychain"
+
+  if security add-trusted-cert -d -r trustRoot -p ssl \
+       -k /Library/Keychains/System.keychain "$CA_PATH" 2>&1; then
+    say "trusted the local CA ($CA_PATH)"
+  else
+    say "warning: could not trust the local CA — Safari will not see the agent, other browsers will"
+  fi
+else
+  say "warning: certificate setup failed ($CA_PATH) — HTTPS off, other browsers still work"
+fi
+
 launchctl bootout "gui/$CONSOLE_UID/$LABEL" 2>/dev/null && say "booted out the previous instance"
 
 if launchctl bootstrap "gui/$CONSOLE_UID" "$PLIST" 2>&1; then
@@ -47,9 +75,17 @@ launchctl kickstart "gui/$CONSOLE_UID/$LABEL" 2>&1 || true
 sleep 2
 HEALTH="$(curl -s --max-time 3 http://127.0.0.1:17357/health 2>&1)"
 if [ -n "$HEALTH" ]; then
-  say "health: $HEALTH"
+  say "health (http): $HEALTH"
 else
-  say "health: no response on 127.0.0.1:17357 — see ~/Library/Logs/easy-pdf-sign-helper.log"
+  say "health (http): no response on 127.0.0.1:17357 — see ~/Library/Logs/easy-pdf-sign-helper.log"
+fi
+
+# No --cacert here on purpose: this checks that the *system* now trusts the CA,
+# which is exactly what Safari will require.
+if curl -s --max-time 3 https://127.0.0.1:17358/health >/dev/null 2>&1; then
+  say "health (https): trusted — Safari will work"
+else
+  say "health (https): not reachable or not trusted — Safari will not work, other browsers will"
 fi
 
 # Never fail the install because of launchctl — the plist covers the next login.

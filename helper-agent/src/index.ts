@@ -21,11 +21,24 @@
  *  Windows OpenSC:  C:\Windows\System32\opensc-pkcs11.dll
  */
 import 'dotenv/config';
+import https from 'node:https';
 import express from 'express';
 import cors from 'cors';
 import { isPkcs11Available, listCertificates, signHash } from './pkcs11Signer';
+import { ensureTlsMaterial, readTlsPair, type TlsMaterial } from './tls';
 
 const PORT = parseInt(process.env.AGENT_PORT ?? '17357', 10);
+const TLS_PORT = parseInt(process.env.AGENT_TLS_PORT ?? '17358', 10);
+
+/**
+ * HTTPS on loopback exists for Safari only — it is the one browser that blocks
+ * http://127.0.0.1 from an HTTPS page. Elsewhere plain HTTP is reached without
+ * a locally trusted certificate, so we do not touch the user's trust store.
+ * AGENT_TLS=1 forces it on for testing on other platforms.
+ */
+const TLS_ENABLED = process.env.AGENT_TLS === '1' || process.platform === 'darwin';
+
+let tlsMaterial: TlsMaterial | null = null;
 
 // Single source of truth for the version: package.json. Works in dev (src/),
 // after tsc (dist/) and inside the pkg snapshot alike — the file sits one level
@@ -51,7 +64,12 @@ app.use(express.json());
 
 app.get('/health', (_req, res) => {
   const pkcs11 = isPkcs11Available();
-  res.json({ ok: true, version: AGENT_VERSION, pkcs11: pkcs11 ? 'available' : 'unavailable' });
+  res.json({
+    ok: true,
+    version: AGENT_VERSION,
+    pkcs11: pkcs11 ? 'available' : 'unavailable',
+    tls: { enabled: tlsMaterial !== null, expires: tlsMaterial?.notAfter.toISOString() ?? null },
+  });
 });
 
 // ─── Certificates ────────────────────────────────────────────────────────────
@@ -88,6 +106,65 @@ app.post('/sign', (req, res) => {
     });
 });
 
+// ─── TLS (loopback HTTPS, for Safari) ────────────────────────────────────────
+
+/**
+ * `--init-tls` is called by the macOS installer as the console user: it creates
+ * the material and prints the CA path, which postinstall then feeds to
+ * `security add-trusted-cert`. Kept in-process so there is exactly one
+ * implementation of "where the certificates live".
+ */
+if (process.argv.includes('--init-tls')) {
+  try {
+    const material = ensureTlsMaterial();
+    console.log(material.caPath);
+    process.exit(0);
+  } catch (err: unknown) {
+    console.error(`TLS setup failed: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  }
+}
+
+function startTls(): void {
+  if (!TLS_ENABLED) return;
+  try {
+    tlsMaterial = ensureTlsMaterial();
+  } catch (err: unknown) {
+    // Not fatal: HTTP still serves every browser but Safari.
+    console.warn(`TLS disabled — ${err instanceof Error ? err.message : String(err)}`);
+    return;
+  }
+
+  const tlsServer = https.createServer(readTlsPair(tlsMaterial), app);
+  tlsServer.on('error', (err: NodeJS.ErrnoException) => {
+    console.warn(`HTTPS listener failed on 127.0.0.1:${TLS_PORT}: ${err.message}`);
+    tlsMaterial = null;
+  });
+  tlsServer.listen(TLS_PORT, '127.0.0.1', () => {
+    console.log(
+      `HTTPS on https://127.0.0.1:${TLS_PORT} (certificate valid until ` +
+      `${tlsMaterial?.notAfter.toISOString().slice(0, 10)})`,
+    );
+  });
+
+  // The leaf outlives any single session, but the agent may run for months at a
+  // time — re-check daily and swap the context in place rather than making the
+  // user reinstall once it expires. unref() so this timer never holds the
+  // process open by itself.
+  setInterval(() => {
+    try {
+      const renewed = ensureTlsMaterial();
+      if (renewed.notAfter.getTime() !== tlsMaterial?.notAfter.getTime()) {
+        tlsServer.setSecureContext(readTlsPair(renewed));
+        console.log(`Certificate renewed, valid until ${renewed.notAfter.toISOString().slice(0, 10)}`);
+      }
+      tlsMaterial = renewed;
+    } catch (err: unknown) {
+      console.warn(`Certificate renewal failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, 24 * 60 * 60 * 1000).unref();
+}
+
 // ─── Start ───────────────────────────────────────────────────────────────────
 
 const server = app.listen(PORT, '127.0.0.1', () => {
@@ -100,6 +177,7 @@ const server = app.listen(PORT, '127.0.0.1', () => {
   console.log(`PKCS11_LIB: ${lib}`);
   console.log(`PKCS11_SLOT: ${process.env.PKCS11_SLOT ?? '0'}`);
   console.log(`PKCS11_PIN: ${process.env.PKCS11_PIN ? '****' : '(not set)'}`);
+  startTls();
 });
 
 // Without this the process dies with an unhandled 'error' event and an

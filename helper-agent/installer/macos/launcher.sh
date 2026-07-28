@@ -20,10 +20,13 @@ esac
 # Under launchd there is nowhere for the output to go, and without it there is
 # no way to tell "never started" from "started and crashed". Keep the terminal
 # case untouched, so running this by hand to debug still prints to the screen.
+# `--init-tls` prints the CA path for the installer to consume, so its output
+# must never be swallowed by the log.
+#
 # The writability probe matters: a failing `exec` redirection kills a
 # non-interactive shell outright, and losing the log must never cost us the
 # agent itself.
-if [ ! -t 1 ] && [ -n "${HOME:-}" ]; then
+if [ "${1:-}" != "--init-tls" ] && [ ! -t 1 ] && [ -n "${HOME:-}" ]; then
   mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
   if : >> "$LOG" 2>/dev/null; then
     exec >> "$LOG" 2>&1

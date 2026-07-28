@@ -113,6 +113,8 @@ export const en: TranslationSchema = {
       'The helper did not answer in time. If you have just installed it, wait a few seconds and try again.',
     helperRefused:
       'The connection to the helper was refused — it is either not running or the browser blocked it. On Safari, try Chrome instead.',
+    helperSafari:
+      'Safari blocks connections to local applications. Install the latest version of the helper — it adds a secure connection Safari accepts. If the problem persists, open the site in Chrome.',
     signButton: 'Sign the document',
     certPickerTitle: 'Choose a certificate',
     certsFound: 'Certificates found on the smart card:',

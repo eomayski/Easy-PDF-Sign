@@ -156,6 +156,12 @@ Defined in `tailwind.config.ts`. Key tokens:
 - Primary: `brand-{50..900}` (indigo family)
 - Use token classes (`bg-brand-600`) not hardcoded hex in components.
 
+## Свързване с helper agent-а
+
+`src/lib/agentBase.ts` пробва `https://127.0.0.1:17358` **преди** `http://127.0.0.1:17357` и връща адреса, който е отговорил; `SigningStep` го пази в state и всички следващи заявки (`/certificates`, `/sign`) минават по него. HTTPS-ът съществува само заради Safari — единственият браузър, който блокира loopback HTTP от HTTPS страница. HTTP резервата е задължителна: агенти преди v0.3.2 нямат HTTPS порт.
+
+`src/lib/detectBrowser.ts` разпознава Safari, за да покаже конкретното съобщение (`signing.helperSafari`) вместо общото „не е открит“.
+
 ## Helper agent installer downloads
 
 `src/lib/detectOS.ts` exports `detectOS()` and `getHelperDownloads(os)`. These are used in `SigningStep.tsx` to show OS-specific download links when the helper agent is not detected.

@@ -16,11 +16,11 @@ import {
   isOlderVersion,
   LATEST_HELPER_VERSION,
 } from '../../lib/detectOS';
+import { probeAgent, AGENT_BASES } from '../../lib/agentBase';
+import { isSafari } from '../../lib/detectBrowser';
 import { dateLocale } from '../../i18n';
 import type { SigningMethod, SignaturePlacement, VisualSignatureConfig } from '../../types';
 import type { CertInfo } from './types';
-
-const AGENT_BASE = 'http://127.0.0.1:17357';
 
 interface Props {
   placement: SignaturePlacement;
@@ -46,6 +46,9 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
   const [agentError, setAgentError] = useState<string | null>(null);
   const [agentStatus, setAgentStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
   const [healthError, setHealthError] = useState<'timeout' | 'refused' | null>(null);
+  // Кой адрес отговори — HTTPS (Safari го изисква) или HTTP. Останалите
+  // заявки към агента трябва да минат по същия, иначе Safari ще ги блокира.
+  const [agentBase, setAgentBase] = useState<string>(AGENT_BASES[0]);
   const [agentVersion, setAgentVersion] = useState<string | null>(null);
 
   const isBusy = status === 'preparing' || status === 'awaiting-agent' || status === 'completing';
@@ -53,11 +56,10 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
   const checkAgent = useCallback(() => {
     setAgentStatus('checking');
     setHealthError(null);
-    fetch(`${AGENT_BASE}/health`, { signal: AbortSignal.timeout(2000) })
-      .then(async (res) => {
-        if (!res.ok) throw new Error(`health ${res.status}`);
-        const body = (await res.json()) as { version?: string };
-        setAgentVersion(body.version ?? null);
+    probeAgent()
+      .then((result) => {
+        setAgentBase(result.base);
+        setAgentVersion(result.version);
         setAgentStatus('available');
       })
       .catch((err: unknown) => {
@@ -87,7 +89,7 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
   // ─── Physical flow ─────────────────────────────────────────────────────────
 
   async function fetchCertsFromAgent(): Promise<CertInfo[]> {
-    const res = await fetch(`${AGENT_BASE}/certificates`);
+    const res = await fetch(`${agentBase}/certificates`);
     if (!res.ok) {
       const body = await res.json().catch(() => ({})) as { error?: string };
       throw new Error(body.error ?? `Agent returned ${res.status}`);
@@ -96,7 +98,7 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
   }
 
   async function signWithAgent(hash: string, certId: string): Promise<string> {
-    const res = await fetch(`${AGENT_BASE}/sign`, {
+    const res = await fetch(`${agentBase}/sign`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ hash, certId }),
@@ -267,7 +269,9 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
             </button>
             {healthError && (
               <p className="mt-3 text-xs text-amber-600">
-                {t(healthError === 'timeout' ? 'signing.helperTimeout' : 'signing.helperRefused')}
+                {isSafari()
+                  ? t('signing.helperSafari')
+                  : t(healthError === 'timeout' ? 'signing.helperTimeout' : 'signing.helperRefused')}
               </p>
             )}
           </div>
