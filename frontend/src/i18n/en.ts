@@ -109,6 +109,10 @@ export const en: TranslationSchema = {
     helperUpdateHint:
       'You are on version {{current}}; the latest is {{latest}}. You can still sign now, but we recommend updating — new versions bring fixes and improvements.',
     checkAgain: 'Check again',
+    helperTimeout:
+      'The helper did not answer in time. If you have just installed it, wait a few seconds and try again.',
+    helperRefused:
+      'The connection to the helper was refused — it is either not running or the browser blocked it. On Safari, try Chrome instead.',
     signButton: 'Sign the document',
     certPickerTitle: 'Choose a certificate',
     certsFound: 'Certificates found on the smart card:',

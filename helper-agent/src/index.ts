@@ -90,10 +90,28 @@ app.post('/sign', (req, res) => {
 
 // ─── Start ───────────────────────────────────────────────────────────────────
 
-app.listen(PORT, '127.0.0.1', () => {
-  console.log(`Helper agent listening on http://127.0.0.1:${PORT}`);
+const server = app.listen(PORT, '127.0.0.1', () => {
+  console.log(`Helper agent v${AGENT_VERSION} listening on http://127.0.0.1:${PORT}`);
+  console.log(`Runtime: ${process.platform}/${process.arch} (node ${process.version})`);
+  // The usual cause of "the browser cannot see the agent" is an origin that is
+  // not on this list — log it so it can be compared with the address bar.
+  console.log(`Allowed origins: ${ALLOWED_ORIGINS.join(', ')}`);
   const lib = process.env.PKCS11_LIB ?? '(not set — set PKCS11_LIB env var)';
   console.log(`PKCS11_LIB: ${lib}`);
   console.log(`PKCS11_SLOT: ${process.env.PKCS11_SLOT ?? '0'}`);
   console.log(`PKCS11_PIN: ${process.env.PKCS11_PIN ? '****' : '(not set)'}`);
+});
+
+// Without this the process dies with an unhandled 'error' event and an
+// unreadable stack — most often because an older copy is still on the port.
+server.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(
+      `Port ${PORT} is already in use — another Easy PDF Sign Helper is running. ` +
+      'Stop it (or log out and back in) and start this one again.',
+    );
+  } else {
+    console.error(`Failed to listen on 127.0.0.1:${PORT}: ${err.message}`);
+  }
+  process.exit(1);
 });

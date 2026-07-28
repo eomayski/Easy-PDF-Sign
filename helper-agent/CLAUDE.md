@@ -92,6 +92,19 @@ Workflow: `.github/workflows/build-helper-agent.yml`
 - `scripts/preinstall` stops the running agent (upgrade), `scripts/postinstall` bootstraps it for the console user so no logout/reboot is needed. Both must `exit 0` or Installer.app reports failure.
 - **Unsigned / not notarized.** Gatekeeper makes the user right-click → Open (the frontend shows this hint — `helper.macGatekeeperHint`). Removing that friction needs an Apple Developer ID ($99/yr) + `productsign` + `notarytool`.
 
+### Diagnosing "the site does not see the agent" on macOS
+
+Two logs, both written without any extra setup:
+
+| Where | What |
+|-------|------|
+| `/var/log/install.log` | every step of `scripts/postinstall` (console user, bootstrap result) **and a `curl` self-check against `/health`** — `grep -i easy-pdf-sign /var/log/install.log \| tail -40` |
+| `~/Library/Logs/easy-pdf-sign-helper.log` | the agent's own output: start time, arch, chosen slice, version, allowed origins, PKCS#11 lib |
+
+`launcher.sh` redirects to that log **only when stdout is not a tty**, so running `/usr/local/bin/easy-pdf-sign-helper` by hand still prints to the terminal. The redirection is guarded by a writability probe — a failing `exec` redirect would otherwise kill the shell and take the agent with it.
+
+Then split the problem: if `curl -s http://127.0.0.1:17357/health` answers but the browser does not see the agent, it is the browser (Safari blocks `http://127.0.0.1` from an HTTPS page more aggressively than Chrome) or the page origin is missing from `ALLOWED_ORIGINS` — which the startup log prints. `launchctl print gui/$(id -u)/bg.easypdfsign.helper` shows whether launchd has the job at all; macOS 13+ can also hold it under System Settings → General → Login Items & Extensions.
+
 ## Local dev
 
 ```bash

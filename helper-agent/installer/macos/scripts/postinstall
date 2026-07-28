@@ -4,23 +4,53 @@
 #
 # The plist lives in /Library/LaunchAgents, so every *other* user gets it
 # automatically at their next login.
+#
+# Everything printed here lands in /var/log/install.log, which is the only
+# record available when the agent does not come up:
+#   grep -i easy-pdf-sign /var/log/install.log | tail -40
 LABEL="bg.easypdfsign.helper"
 PLIST="/Library/LaunchAgents/$LABEL.plist"
 
-chown root:wheel "$PLIST" 2>/dev/null || true
-chmod 644 "$PLIST" 2>/dev/null || true
+say() { echo "easy-pdf-sign-helper: $*"; }
+
+chown root:wheel "$PLIST" 2>/dev/null || say "warning: could not chown $PLIST"
+chmod 644 "$PLIST" 2>/dev/null || say "warning: could not chmod $PLIST"
 
 CONSOLE_USER="$(stat -f%Su /dev/console 2>/dev/null || echo '')"
 case "$CONSOLE_USER" in
-  ''|root|loginwindow) exit 0 ;;   # no GUI session — the agent starts at next login
+  ''|root|loginwindow)
+    say "no GUI session (console user: '${CONSOLE_USER:-unknown}') — the agent starts at next login"
+    exit 0
+    ;;
 esac
 
-CONSOLE_UID="$(id -u "$CONSOLE_USER" 2>/dev/null)" || exit 0
+CONSOLE_UID="$(id -u "$CONSOLE_USER" 2>/dev/null)" || {
+  say "could not resolve uid for '$CONSOLE_USER' — the agent starts at next login"
+  exit 0
+}
+say "console user: $CONSOLE_USER (uid $CONSOLE_UID)"
 
-launchctl bootout "gui/$CONSOLE_UID/$LABEL" 2>/dev/null || true
-launchctl bootstrap "gui/$CONSOLE_UID" "$PLIST" 2>/dev/null ||
-  launchctl load -w "$PLIST" 2>/dev/null || true
-launchctl kickstart "gui/$CONSOLE_UID/$LABEL" 2>/dev/null || true
+launchctl bootout "gui/$CONSOLE_UID/$LABEL" 2>/dev/null && say "booted out the previous instance"
 
-# Never fail the install because of launchctl — the login item covers it.
+if launchctl bootstrap "gui/$CONSOLE_UID" "$PLIST" 2>&1; then
+  say "bootstrap ok"
+elif launchctl load -w "$PLIST" 2>&1; then
+  say "bootstrap failed, legacy load ok"
+else
+  say "could not start the agent now — it will start at the next login"
+fi
+
+launchctl kickstart "gui/$CONSOLE_UID/$LABEL" 2>&1 || true
+
+# Self-check: says outright whether the port answers, so support does not have
+# to guess between "never started" and "started but unreachable".
+sleep 2
+HEALTH="$(curl -s --max-time 3 http://127.0.0.1:17357/health 2>&1)"
+if [ -n "$HEALTH" ]; then
+  say "health: $HEALTH"
+else
+  say "health: no response on 127.0.0.1:17357 — see ~/Library/Logs/easy-pdf-sign-helper.log"
+fi
+
+# Never fail the install because of launchctl — the plist covers the next login.
 exit 0

@@ -45,12 +45,14 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
   const [showCertPicker, setShowCertPicker] = useState(false);
   const [agentError, setAgentError] = useState<string | null>(null);
   const [agentStatus, setAgentStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
+  const [healthError, setHealthError] = useState<'timeout' | 'refused' | null>(null);
   const [agentVersion, setAgentVersion] = useState<string | null>(null);
 
   const isBusy = status === 'preparing' || status === 'awaiting-agent' || status === 'completing';
 
   const checkAgent = useCallback(() => {
     setAgentStatus('checking');
+    setHealthError(null);
     fetch(`${AGENT_BASE}/health`, { signal: AbortSignal.timeout(2000) })
       .then(async (res) => {
         if (!res.ok) throw new Error(`health ${res.status}`);
@@ -58,7 +60,15 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
         setAgentVersion(body.version ?? null);
         setAgentStatus('available');
       })
-      .catch(() => setAgentStatus('unavailable'));
+      .catch((err: unknown) => {
+        // Без това всяка причина изглежда еднакво („не е открит“), а те са
+        // различни: изтекло време = агентът мълчи, TypeError = отказана връзка
+        // или блокирана от браузъра (Safari + http от https, CORS origin).
+        console.warn('[helper] /health check failed:', err);
+        const name = err instanceof Error ? err.name : '';
+        setHealthError(name === 'TimeoutError' ? 'timeout' : 'refused');
+        setAgentStatus('unavailable');
+      });
   }, []);
 
   // Ping the local helper agent whenever the physical method is selected,
@@ -255,6 +265,11 @@ export function SigningStep({ placement, visualConfig, onDone, onBack }: Props) 
             >
               {t('signing.checkAgain')}
             </button>
+            {healthError && (
+              <p className="mt-3 text-xs text-amber-600">
+                {t(healthError === 'timeout' ? 'signing.helperTimeout' : 'signing.helperRefused')}
+              </p>
+            )}
           </div>
         )}
 
